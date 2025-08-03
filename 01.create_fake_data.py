@@ -162,7 +162,7 @@ if __name__ == "__main__":
     fake_users_config = FrameConfig("fake_users", generate_users_frame())
     fake_products_config = FrameConfig("fake_products", generate_products_data())
     fake_orders_config = FrameConfig("fake_orders", generate_orders_data())
-    # persist frames to volume
+    # persist frames to a volume
     for config in [fake_users_config, fake_products_config, fake_orders_config]:
         write_frame_config_to_path(WRITE_PATH, config)
 

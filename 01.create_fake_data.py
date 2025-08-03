@@ -1,16 +1,17 @@
 # Databricks notebook source
 # MAGIC %pip install mimesis pendulum logzero
+# MAGIC
 
 # COMMAND ----------
-
 
 import random
 from typing import NamedTuple
 
 import pendulum
-from logzero import logger
+from logzero import logger 
 from mimesis import Person, Address, Generic, Finance
 from pyspark.sql import Row, DataFrame
+
 
 NUM_USERS = 2000
 NUM_PRODUCTS = 1500
@@ -20,9 +21,9 @@ WRITE_PATH = f"/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
 
 def generate_list_of_rows(
-        type: str,  # could be users, orders, products
-        num_rows: int,
-        locale: str = LOCALE,
+    type: str, # could be users, orders, products
+    num_rows: int,
+    locale: str = LOCALE,
 ) -> list[Row]:
     """
     Generatest a list of rows for a given type
@@ -33,44 +34,44 @@ def generate_list_of_rows(
     address = Address(locale)
     generic = Generic(locale)
     finance = Finance(locale)
-
+    
     # return users rows
     if type == "users":
         logger.info(f"Generating {num_rows} users rows")
         return [
-            # inconsistent naming of columns is intentional :)
-            Row(
-                id=i,
-                Person_Name=person.name(),
-                person_surname=person.surname(),
-                Personal_Address=address.address(),
-                city=address.city(),
-                Country=address.country(),
-                personal_email=person.email(),
-                timestamp=pendulum.now().isoformat(),
-                nonsense_column=random.randint(0, 1000),
-            )
-            for i in range(1, num_rows + 1)
-        ]
+        # inconsistent naming of columns is intentional :)
+        Row(
+            id=i,
+            Person_Name=person.name(),
+            person_surname=person.surname(),
+            Personal_Address=address.address(),
+            city=address.city(),
+            Country=address.country(),
+            personal_email=person.email(),
+            timestamp=pendulum.now().isoformat(),
+            nonsense_column=random.randint(0, 1000),
+        )
+        for i in range(1, num_rows + 1)
+    ]
     # return products rows
     if type == "products":
         logger.info(f"Generating {num_rows} products rows")
         return [
-            Row(
-                id=i,
-                product_name=generic.text.word(),
-                price=round(random.uniform(10, 500), 2),
-                description=generic.text.text(quantity=1),
-                stock=random.randint(0, 1000),
-                company_name=finance.company(),
-                timestamp=pendulum.now().isoformat(),
-                nonsense_column=random.randint(0, 1000),
+        Row(
+            id=i,
+            product_name=generic.text.word(),
+            price=round(random.uniform(10, 500), 2),
+            description=generic.text.text(quantity=1),
+            stock=random.randint(0, 1000),
+            company_name=finance.company(),
+            timestamp=pendulum.now().isoformat(),
+            nonsense_column=random.randint(0, 1000),
 
-            )
-            for i in range(1, num_rows + 1)
-        ]
+        )
+        for i in range(1, num_rows + 1)
+    ]
     # return orders rows
-    logger.info(f"Generating {num_rows} orders rows")
+    logger.info(f"Generating {num_rows} orders rows")   
     return [
         Row(
             id=i,
@@ -83,7 +84,6 @@ def generate_list_of_rows(
         for i in range(1, num_rows + 1)
     ]
 
-
 # Users Data
 
 def generate_users_frame(
@@ -93,8 +93,6 @@ def generate_users_frame(
     """
     Generates fake users data. Columns naming is intentionally incosistent :).
     """
-    person = Person(locale)
-    address = Address(locale)
     users_rows = generate_list_of_rows("users", num_users, locale)
     users_df = spark.createDataFrame(users_rows)
     return users_df
@@ -105,9 +103,6 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCAL
     """
     Generates fake products data. Columns naming is intentionally incosistent.
     """
-    generic = Generic(locale)
-    finance = Finance(locale)
-
     products_rows = generate_list_of_rows("products", num_products, locale)
     products_df = spark.createDataFrame(products_rows)
     return products_df
@@ -120,13 +115,10 @@ def generate_orders_data(
     """
     Generates fake orders data. 
     """
-    generic = Generic(locale)
-    finance = Finance(locale)
     orders_rows = generate_list_of_rows("orders", num_orders, locale)
     orders_df = spark.createDataFrame(orders_rows)
     return orders_df
-
-
+    
 class FrameConfig(NamedTuple):
     """
     frame configuration object
@@ -134,13 +126,11 @@ class FrameConfig(NamedTuple):
     name: str
     df: DataFrame
 
-
 def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
     """
     Writes a DataFrame to a path.
     """
     config.df.write.mode("append").csv(f"{root_path}/{config.name}", header=True)
-
 
 # COMMAND ----------
 
@@ -172,6 +162,9 @@ if __name__ == "__main__":
     fake_users_config = FrameConfig("fake_users", generate_users_frame())
     fake_products_config = FrameConfig("fake_products", generate_products_data())
     fake_orders_config = FrameConfig("fake_orders", generate_orders_data())
-    # persist frames to a volume
+    # persist frames to volume
     for config in [fake_users_config, fake_products_config, fake_orders_config]:
         write_frame_config_to_path(WRITE_PATH, config)
+
+# COMMAND ----------
+

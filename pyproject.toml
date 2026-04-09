@@ -14,7 +14,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "bandit>=1.9.0",
+    "mypy>=1.10.0",
+    "pre-commit>=4.0.0",
     "pytest>=9.0.0",
+    "ruff>=0.4.0",
 ]
 
 [tool.pytest.ini_options]
@@ -22,3 +26,34 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "S"]
+ignore = [
+    "S101",  # assert is fine in tests
+    "S311",  # random for fake data generation is acceptable
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Databricks notebooks: spark/dlt are injected globals, not importable
+"01.create_fake_data.py" = ["F821"]
+"02.simple_pipeline.py" = ["F821"]
+"03.advanced_pipeline.py" = ["F821"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# Databricks notebooks reference spark/dlt globals that don't exist locally
+exclude = [
+    "01\\.create_fake_data\\.py",
+    "02\\.simple_pipeline\\.py",
+    "03\\.advanced_pipeline\\.py",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B311"]  # random is fine for fake/test data generation

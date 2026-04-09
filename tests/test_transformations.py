@@ -4,13 +4,7 @@ Unit tests for pure PySpark transformation functions defined in transformations.
 
 import pytest
 from pyspark.sql import SparkSession
-from pyspark.sql.types import (
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
-)
+from pyspark.sql.types import TimestampType
 
 from transformations import (
     add_load_timestamp,
@@ -20,40 +14,32 @@ from transformations import (
     remove_nonsense_columns,
 )
 
-
 # ---------------------------------------------------------------------------
 # add_load_timestamp
 # ---------------------------------------------------------------------------
 
 class TestAddLoadTimestamp:
-    def test_adds_default_column(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "a")], ["id", "value"])
-        result = add_load_timestamp(df)
+    @pytest.mark.parametrize("col_name", ["load_timestamp", "ingested_at", "ts"])
+    def test_column_is_created(self, simple_df, col_name: str) -> None:
+        result = add_load_timestamp(simple_df, timestamp_col_name=col_name)
+        assert col_name in result.columns
+
+    def test_default_column_name(self, simple_df) -> None:
+        result = add_load_timestamp(simple_df)
         assert "load_timestamp" in result.columns
 
-    def test_adds_custom_column_name(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1,)], ["id"])
-        result = add_load_timestamp(df, timestamp_col_name="ingested_at")
-        assert "ingested_at" in result.columns
-        assert "load_timestamp" not in result.columns
-
-    def test_original_columns_preserved(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "hello")], ["id", "value"])
-        result = add_load_timestamp(df)
-        assert "id" in result.columns
-        assert "value" in result.columns
-
-    def test_timestamp_column_type(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1,)], ["id"])
-        result = add_load_timestamp(df)
+    def test_column_type_is_timestamp(self, simple_df) -> None:
+        result = add_load_timestamp(simple_df)
         field = next(f for f in result.schema if f.name == "load_timestamp")
         assert isinstance(field.dataType, TimestampType)
 
-    def test_row_count_unchanged(self, spark: SparkSession) -> None:
-        data = [(i,) for i in range(5)]
-        df = spark.createDataFrame(data, ["id"])
-        result = add_load_timestamp(df)
-        assert result.count() == 5
+    def test_original_columns_preserved(self, simple_df) -> None:
+        result = add_load_timestamp(simple_df)
+        assert {"id", "value"}.issubset(set(result.columns))
+
+    def test_row_count_unchanged(self, simple_df) -> None:
+        result = add_load_timestamp(simple_df)
+        assert result.count() == simple_df.count()
 
 
 # ---------------------------------------------------------------------------
@@ -61,44 +47,31 @@ class TestAddLoadTimestamp:
 # ---------------------------------------------------------------------------
 
 class TestExtractFileNameFromMetadata:
-    def _make_df_with_metadata(self, spark: SparkSession):
-        schema = StructType([
-            StructField("id", IntegerType()),
-            StructField("meta", StructType([
-                StructField("file_name", StringType()),
-            ])),
-        ])
-        data = [(1, {"file_name": "orders.csv"}), (2, {"file_name": "products.csv"})]
-        return spark.createDataFrame(data, schema)
-
-    def test_adds_file_name_column(self, spark: SparkSession) -> None:
-        df = self._make_df_with_metadata(spark)
+    def test_file_name_column_added(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
-            df, metadata_column="meta", file_name_field="file_name"
+            metadata_df, metadata_column="meta", file_name_field="file_name"
         )
         assert "file_name" in result.columns
 
-    def test_file_name_values_correct(self, spark: SparkSession) -> None:
-        df = self._make_df_with_metadata(spark)
+    def test_file_name_values_correct(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
-            df, metadata_column="meta", file_name_field="file_name"
+            metadata_df, metadata_column="meta", file_name_field="file_name"
         )
-        file_names = {row["file_name"] for row in result.collect()}
-        assert file_names == {"orders.csv", "products.csv"}
+        assert {row["file_name"] for row in result.collect()} == {
+            "orders.csv", "products.csv"
+        }
 
-    def test_original_columns_preserved(self, spark: SparkSession) -> None:
-        df = self._make_df_with_metadata(spark)
+    def test_original_columns_preserved(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
-            df, metadata_column="meta", file_name_field="file_name"
+            metadata_df, metadata_column="meta", file_name_field="file_name"
         )
         assert "id" in result.columns
 
-    def test_row_count_unchanged(self, spark: SparkSession) -> None:
-        df = self._make_df_with_metadata(spark)
+    def test_row_count_unchanged(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
-            df, metadata_column="meta", file_name_field="file_name"
+            metadata_df, metadata_column="meta", file_name_field="file_name"
         )
-        assert result.count() == df.count()
+        assert result.count() == metadata_df.count()
 
 
 # ---------------------------------------------------------------------------
@@ -106,27 +79,26 @@ class TestExtractFileNameFromMetadata:
 # ---------------------------------------------------------------------------
 
 class TestLowerAllColumnNames:
-    def test_lowercases_all_columns(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "x")], ["ID", "Value"])
+    @pytest.mark.parametrize("input_cols,expected_cols", [
+        (["ID", "Value"], ["id", "value"]),
+        (["id", "value"], ["id", "value"]),
+        (["Person_Name", "SURNAME"], ["person_name", "surname"]),
+        (["MixedCase"], ["mixedcase"]),
+    ])
+    def test_columns_are_lowercased(
+        self, spark: SparkSession, input_cols: list, expected_cols: list
+    ) -> None:
+        df = spark.createDataFrame([(1,) * len(input_cols)], input_cols)
         result = lower_all_column_names(df)
-        assert result.columns == ["id", "value"]
+        assert result.columns == expected_cols
 
-    def test_already_lowercase_unchanged(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "x")], ["id", "value"])
-        result = lower_all_column_names(df)
-        assert result.columns == ["id", "value"]
+    def test_values_unchanged(self, mixed_case_df) -> None:
+        result = lower_all_column_names(mixed_case_df)
+        assert result.first()["id"] == 1
 
-    def test_mixed_case_columns(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1,)], ["Person_Name"])
-        result = lower_all_column_names(df)
-        assert "person_name" in result.columns
-
-    def test_row_count_and_values_unchanged(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(42, "hello")], ["ID", "Message"])
-        result = lower_all_column_names(df)
-        row = result.first()
-        assert row["id"] == 42
-        assert row["message"] == "hello"
+    def test_row_count_unchanged(self, mixed_case_df) -> None:
+        result = lower_all_column_names(mixed_case_df)
+        assert result.count() == mixed_case_df.count()
 
 
 # ---------------------------------------------------------------------------
@@ -134,32 +106,21 @@ class TestLowerAllColumnNames:
 # ---------------------------------------------------------------------------
 
 class TestRemoveNonsenseColumns:
-    def test_removes_specified_column(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, 99)], ["id", "nonsense_column"])
-        result = remove_nonsense_columns(df, columns_to_drop=["nonsense_column"])
-        assert "nonsense_column" not in result.columns
+    @pytest.mark.parametrize("columns_to_drop,expected_remaining", [
+        (["nonsense_column"], {"id", "important"}),
+        (["id", "nonsense_column"], {"important"}),
+        (["nonexistent"], {"id", "nonsense_column", "important"}),
+        ([], {"id", "nonsense_column", "important"}),
+    ])
+    def test_correct_columns_remain(
+        self, nonsense_df, columns_to_drop: list, expected_remaining: set
+    ) -> None:
+        result = remove_nonsense_columns(nonsense_df, columns_to_drop=columns_to_drop)
+        assert set(result.columns) == expected_remaining
 
-    def test_keeps_remaining_columns(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, 99, "keep")], ["id", "nonsense_column", "important"])
-        result = remove_nonsense_columns(df, columns_to_drop=["nonsense_column"])
-        assert "id" in result.columns
-        assert "important" in result.columns
-
-    def test_missing_column_ignored(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1,)], ["id"])
-        result = remove_nonsense_columns(df, columns_to_drop=["nonexistent"])
-        assert result.columns == ["id"]
-
-    def test_removes_multiple_columns(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, 2, 3)], ["a", "b", "c"])
-        result = remove_nonsense_columns(df, columns_to_drop=["a", "c"])
-        assert result.columns == ["b"]
-
-    def test_row_count_unchanged(self, spark: SparkSession) -> None:
-        data = [(i, i * 10) for i in range(5)]
-        df = spark.createDataFrame(data, ["id", "nonsense_column"])
-        result = remove_nonsense_columns(df, columns_to_drop=["nonsense_column"])
-        assert result.count() == 5
+    def test_row_count_unchanged(self, nonsense_df) -> None:
+        result = remove_nonsense_columns(nonsense_df, columns_to_drop=["nonsense_column"])
+        assert result.count() == nonsense_df.count()
 
 
 # ---------------------------------------------------------------------------
@@ -167,70 +128,43 @@ class TestRemoveNonsenseColumns:
 # ---------------------------------------------------------------------------
 
 class TestAnonymizeSensitiveData:
-    def test_sensitive_columns_are_hashed(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame(
-            [(1, "user@example.com")],
-            ["id", "personal_email"],
-        )
-        result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
-        row = result.first()
-        assert row["personal_email"] != "user@example.com"
+    @pytest.mark.parametrize("col_name", [
+        "personal_email", "person_surname", "personal_address"
+    ])
+    def test_sensitive_column_is_hashed(self, sensitive_df, col_name: str) -> None:
+        original = sensitive_df.first()[col_name]
+        result = anonymize_sensitive_data(sensitive_df, sensitive_cols=[col_name])
+        assert result.first()[col_name] != original
 
-    def test_hashed_value_is_hex_string(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame(
-            [(1, "user@example.com")],
-            ["id", "personal_email"],
-        )
-        result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
-        hashed = result.first()["personal_email"]
-        assert len(hashed) == 64  # SHA-256 produces 64 hex characters
-
-    def test_non_sensitive_columns_unchanged(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame(
-            [(1, "user@example.com", "Alice")],
-            ["id", "personal_email", "name"],
-        )
-        result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
-        row = result.first()
-        assert row["id"] == 1
-        assert row["name"] == "Alice"
-
-    def test_absent_sensitive_column_ignored(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "data")], ["id", "value"])
-        result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
-        assert result.columns == ["id", "value"]
-        assert result.first()["value"] == "data"
-
-    def test_no_sensitive_columns_returns_original(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "data")], ["id", "value"])
-        result = anonymize_sensitive_data(df, sensitive_cols=[])
-        assert result.first()["value"] == "data"
-
-    def test_multiple_sensitive_columns_hashed(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame(
-            [(1, "user@example.com", "Smith")],
-            ["id", "personal_email", "person_surname"],
-        )
+    @pytest.mark.parametrize("hash_length,expected_hex_len", [
+        (256, 64),
+        (512, 128),
+    ])
+    def test_hash_output_length(
+        self, sensitive_df, hash_length: int, expected_hex_len: int
+    ) -> None:
         result = anonymize_sensitive_data(
-            df, sensitive_cols=["personal_email", "person_surname"]
+            sensitive_df, sensitive_cols=["personal_email"], sha_hash_length=hash_length
         )
-        row = result.first()
-        assert row["personal_email"] != "user@example.com"
-        assert row["person_surname"] != "Smith"
+        assert len(result.first()["personal_email"]) == expected_hex_len
 
-    def test_sha512_hash_length(self, spark: SparkSession) -> None:
-        df = spark.createDataFrame([(1, "secret")], ["id", "personal_email"])
-        result = anonymize_sensitive_data(
-            df, sensitive_cols=["personal_email"], sha_hash_length=512
-        )
-        hashed = result.first()["personal_email"]
-        assert len(hashed) == 128  # SHA-512 produces 128 hex characters
+    def test_absent_column_is_ignored(self, simple_df) -> None:
+        result = anonymize_sensitive_data(simple_df, sensitive_cols=["personal_email"])
+        assert result.columns == simple_df.columns
 
-    def test_same_input_same_hash(self, spark: SparkSession) -> None:
+    def test_non_sensitive_columns_unchanged(self, sensitive_df) -> None:
+        result = anonymize_sensitive_data(sensitive_df, sensitive_cols=["personal_email"])
+        assert result.first()["id"] == 1
+
+    def test_same_value_produces_same_hash(self, spark: SparkSession) -> None:
         df = spark.createDataFrame(
-            [(1, "user@example.com"), (2, "user@example.com")],
+            [(1, "same@example.com"), (2, "same@example.com")],
             ["id", "personal_email"],
         )
         result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
         rows = result.orderBy("id").collect()
         assert rows[0]["personal_email"] == rows[1]["personal_email"]
+
+    def test_no_sensitive_columns_returns_frame_unchanged(self, simple_df) -> None:
+        result = anonymize_sensitive_data(simple_df, sensitive_cols=[])
+        assert result.first()["value"] == "a"

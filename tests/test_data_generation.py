@@ -1,32 +1,21 @@
 """
-Unit tests for data generation helper functions defined in 01.create_fake_data.py.
+Unit tests for pure data generation functions defined in data_generation.py.
 
-The generate_list_of_rows function is pure (no SparkSession dependency) so
-it can be tested without any Spark infrastructure.
+All tested functions are pure (no SparkSession dependency).
 """
-
-import importlib.util
-import os
-import sys
 
 import pytest
 from pyspark.sql import Row
 
-# 01.create_fake_data.py lives in the repo root; add parent dir to sys.path.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from data_generation import FrameConfig, generate_list_of_rows
 
-# Load the module without relying on a live `spark` global (Databricks runtime).
-# The Databricks magic-comment cells are never executed outside the notebook
-# runner, so plain importlib is sufficient here.
-_spec = importlib.util.spec_from_file_location(
-    "create_fake_data",
-    os.path.join(os.path.dirname(__file__), "..", "01.create_fake_data.py"),
-)
-_mod = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+# ---------------------------------------------------------------------------
+# Shared fixture – parametrized over all row types
+# ---------------------------------------------------------------------------
 
-generate_list_of_rows = _mod.generate_list_of_rows
-FrameConfig = _mod.FrameConfig
+@pytest.fixture(params=["users", "products", "orders"])
+def any_row_type(request):
+    return request.param
 
 
 # ---------------------------------------------------------------------------
@@ -34,36 +23,31 @@ FrameConfig = _mod.FrameConfig
 # ---------------------------------------------------------------------------
 
 class TestGenerateListOfRowsCommon:
-    @pytest.mark.parametrize("row_type", ["users", "products", "orders"])
-    def test_returns_correct_number_of_rows(self, row_type: str) -> None:
-        rows = generate_list_of_rows(row_type, num_rows=10)
-        assert len(rows) == 10
+    @pytest.mark.parametrize("num_rows", [0, 1, 5, 10])
+    def test_returns_correct_count(self, any_row_type, num_rows: int) -> None:
+        rows = generate_list_of_rows(any_row_type, num_rows=num_rows)
+        assert len(rows) == num_rows
 
-    @pytest.mark.parametrize("row_type", ["users", "products", "orders"])
-    def test_returns_list_of_row_objects(self, row_type: str) -> None:
-        rows = generate_list_of_rows(row_type, num_rows=3)
+    def test_returns_list_of_row_objects(self, any_row_type) -> None:
+        rows = generate_list_of_rows(any_row_type, num_rows=3)
         assert all(isinstance(r, Row) for r in rows)
 
-    @pytest.mark.parametrize("row_type", ["users", "products", "orders"])
-    def test_ids_are_sequential_from_one(self, row_type: str) -> None:
+    def test_ids_are_sequential_from_one(self, any_row_type) -> None:
         n = 5
-        rows = generate_list_of_rows(row_type, num_rows=n)
-        ids = [r.id for r in rows]
-        assert ids == list(range(1, n + 1))
+        rows = generate_list_of_rows(any_row_type, num_rows=n)
+        assert [r.id for r in rows] == list(range(1, n + 1))
 
-    def test_invalid_type_raises_assertion(self) -> None:
-        with pytest.raises(AssertionError):
-            generate_list_of_rows("invalid_type", num_rows=1)
-
-    def test_zero_rows_returns_empty_list(self) -> None:
-        assert generate_list_of_rows("users", num_rows=0) == []
+    @pytest.mark.parametrize("invalid_type", ["USERS", "invalid", "", "order", " users"])
+    def test_invalid_type_raises_value_error(self, invalid_type: str) -> None:
+        with pytest.raises(ValueError, match="Invalid row_type"):
+            generate_list_of_rows(invalid_type, num_rows=1)
 
 
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – users
 # ---------------------------------------------------------------------------
 
-class TestGenerateUsersRows:
+class TestUsersRows:
     EXPECTED_FIELDS = {
         "id",
         "Person_Name",
@@ -76,26 +60,25 @@ class TestGenerateUsersRows:
         "nonsense_column",
     }
 
-    def test_users_have_required_fields(self) -> None:
-        rows = generate_list_of_rows("users", num_rows=1)
-        assert set(rows[0].__fields__) == self.EXPECTED_FIELDS
+    @pytest.fixture
+    def users_rows(self):
+        return generate_list_of_rows("users", num_rows=5)
 
-    def test_nonsense_column_is_int_in_range(self) -> None:
-        rows = generate_list_of_rows("users", num_rows=20)
-        for row in rows:
-            assert 0 <= row.nonsense_column <= 1000
+    def test_required_fields(self, users_rows) -> None:
+        assert set(users_rows[0].__fields__) == self.EXPECTED_FIELDS
 
-    def test_email_contains_at_sign(self) -> None:
-        rows = generate_list_of_rows("users", num_rows=5)
-        for row in rows:
-            assert "@" in row.personal_email
+    def test_email_contains_at_sign(self, users_rows) -> None:
+        assert all("@" in row.personal_email for row in users_rows)
+
+    def test_nonsense_column_in_range(self, users_rows) -> None:
+        assert all(0 <= row.nonsense_column <= 1000 for row in users_rows)
 
 
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – products
 # ---------------------------------------------------------------------------
 
-class TestGenerateProductsRows:
+class TestProductsRows:
     EXPECTED_FIELDS = {
         "id",
         "product_name",
@@ -107,27 +90,25 @@ class TestGenerateProductsRows:
         "nonsense_column",
     }
 
-    def test_products_have_required_fields(self) -> None:
-        rows = generate_list_of_rows("products", num_rows=1)
-        assert set(rows[0].__fields__) == self.EXPECTED_FIELDS
+    @pytest.fixture
+    def products_rows(self):
+        return generate_list_of_rows("products", num_rows=5)
 
-    def test_price_is_within_expected_range(self) -> None:
-        rows = generate_list_of_rows("products", num_rows=20)
-        for row in rows:
-            assert 10.0 <= row.price <= 500.0
+    def test_required_fields(self, products_rows) -> None:
+        assert set(products_rows[0].__fields__) == self.EXPECTED_FIELDS
 
-    def test_stock_is_non_negative_integer(self) -> None:
-        rows = generate_list_of_rows("products", num_rows=20)
-        for row in rows:
-            assert isinstance(row.stock, int)
-            assert row.stock >= 0
+    def test_price_in_expected_range(self, products_rows) -> None:
+        assert all(10.0 <= row.price <= 500.0 for row in products_rows)
+
+    def test_stock_is_non_negative_integer(self, products_rows) -> None:
+        assert all(isinstance(row.stock, int) and row.stock >= 0 for row in products_rows)
 
 
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – orders
 # ---------------------------------------------------------------------------
 
-class TestGenerateOrdersRows:
+class TestOrdersRows:
     EXPECTED_FIELDS = {
         "id",
         "productid",
@@ -137,20 +118,18 @@ class TestGenerateOrdersRows:
         "nonsense_column",
     }
 
-    def test_orders_have_required_fields(self) -> None:
-        rows = generate_list_of_rows("orders", num_rows=1)
-        assert set(rows[0].__fields__) == self.EXPECTED_FIELDS
+    @pytest.fixture
+    def orders_rows(self):
+        return generate_list_of_rows("orders", num_rows=5)
 
-    def test_price_is_within_expected_range(self) -> None:
-        rows = generate_list_of_rows("orders", num_rows=20)
-        for row in rows:
-            assert 10.0 <= row.price <= 500.0
+    def test_required_fields(self, orders_rows) -> None:
+        assert set(orders_rows[0].__fields__) == self.EXPECTED_FIELDS
 
-    def test_productid_is_positive_integer(self) -> None:
-        rows = generate_list_of_rows("orders", num_rows=20)
-        for row in rows:
-            assert isinstance(row.productid, int)
-            assert row.productid > 0
+    def test_price_in_expected_range(self, orders_rows) -> None:
+        assert all(10.0 <= row.price <= 500.0 for row in orders_rows)
+
+    def test_productid_is_positive_integer(self, orders_rows) -> None:
+        assert all(isinstance(row.productid, int) and row.productid > 0 for row in orders_rows)
 
 
 # ---------------------------------------------------------------------------
@@ -158,11 +137,11 @@ class TestGenerateOrdersRows:
 # ---------------------------------------------------------------------------
 
 class TestFrameConfig:
-    def test_frame_config_stores_name(self) -> None:
+    def test_stores_name(self) -> None:
         config = FrameConfig(name="fake_users", df=None)
         assert config.name == "fake_users"
 
-    def test_frame_config_is_immutable(self) -> None:
+    def test_is_immutable(self) -> None:
         config = FrameConfig(name="fake_users", df=None)
         with pytest.raises((AttributeError, TypeError)):
             config.name = "other"  # type: ignore[misc]

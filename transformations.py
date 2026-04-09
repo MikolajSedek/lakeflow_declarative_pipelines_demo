@@ -8,7 +8,6 @@ and can be unit-tested with a local SparkSession.
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 
-
 METADATA_COLUMN = "_metadata"
 FILE_NAME_FIELD = "file_name"
 

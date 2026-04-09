@@ -5,9 +5,9 @@ The generate_list_of_rows function is pure (no SparkSession dependency) so
 it can be tested without any Spark infrastructure.
 """
 
+import importlib.util
 import os
 import sys
-from importlib import util as _ilu
 
 import pytest
 from pyspark.sql import Row
@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Load the module without relying on a live `spark` global (Databricks runtime).
 # The Databricks magic-comment cells are never executed outside the notebook
 # runner, so plain importlib is sufficient here.
-_spec = _ilu.spec_from_file_location(
+_spec = importlib.util.spec_from_file_location(
     "create_fake_data",
     os.path.join(os.path.dirname(__file__), "..", "01.create_fake_data.py"),
 )
-_mod = _ilu.module_from_spec(_spec)
+_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 generate_list_of_rows = _mod.generate_list_of_rows

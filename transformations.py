@@ -59,7 +59,8 @@ def remove_nonsense_columns(
     Drops the specified columns from the input frame.
     Columns that are absent from the frame are silently ignored.
     """
-    existing = [c for c in columns_to_drop if c in input_frame.columns]
+    existing_cols = set(input_frame.columns)
+    existing = [c for c in columns_to_drop if c in existing_cols]
     return input_frame.drop(*existing)
 
 

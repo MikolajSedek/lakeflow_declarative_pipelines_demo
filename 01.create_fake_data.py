@@ -21,22 +21,22 @@ WRITE_PATH = f"/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
 
 def generate_list_of_rows(
-    type: str, # could be users, orders, products
+    row_type: str,  # could be users, orders, products
     num_rows: int,
     locale: str = LOCALE,
 ) -> list[Row]:
     """
-    Generatest a list of rows for a given type
+    Generates a list of rows for a given type.
     """
-    assert type in ["users", "products", "orders"], f"Invalid type: {type}"
+    assert row_type in ["users", "products", "orders"], f"Invalid type: {row_type}"
 
     person = Person(locale)
     address = Address(locale)
     generic = Generic(locale)
     finance = Finance(locale)
-    
+
     # return users rows
-    if type == "users":
+    if row_type == "users":
         logger.info(f"Generating {num_rows} users rows")
         return [
         # inconsistent naming of columns is intentional :)
@@ -54,7 +54,7 @@ def generate_list_of_rows(
         for i in range(1, num_rows + 1)
     ]
     # return products rows
-    if type == "products":
+    if row_type == "products":
         logger.info(f"Generating {num_rows} products rows")
         return [
         Row(
@@ -91,7 +91,7 @@ def generate_users_frame(
     locale: str = LOCALE
 ) -> DataFrame:
     """
-    Generates fake users data. Columns naming is intentionally incosistent :).
+    Generates fake users data. Column naming is intentionally inconsistent :).
     """
     users_rows = generate_list_of_rows("users", num_users, locale)
     users_df = spark.createDataFrame(users_rows)
@@ -101,7 +101,7 @@ def generate_users_frame(
 # Products Data
 def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCALE) -> DataFrame:
     """
-    Generates fake products data. Columns naming is intentionally incosistent.
+    Generates fake products data. Column naming is intentionally inconsistent.
     """
     products_rows = generate_list_of_rows("products", num_products, locale)
     products_df = spark.createDataFrame(products_rows)
@@ -110,10 +110,10 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCAL
 
 # Orders Data
 def generate_orders_data(
-    num_orders: int = NUM_ORDERS, num_products: int = NUM_PRODUCTS, locale: str = LOCALE
+    num_orders: int = NUM_ORDERS, locale: str = LOCALE
 ) -> DataFrame:
     """
-    Generates fake orders data. 
+    Generates fake orders data.
     """
     orders_rows = generate_list_of_rows("orders", num_orders, locale)
     orders_df = spark.createDataFrame(orders_rows)

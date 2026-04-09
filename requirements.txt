@@ -1,0 +1,8 @@
+logzero>=1.7.0
+mimesis>=19.1.0
+pendulum>=3.2.0
+pydantic>=2.12.5
+pyspark>=4.0.0
+
+# testing
+pytest>=9.0.0

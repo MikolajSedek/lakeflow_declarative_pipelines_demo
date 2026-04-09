@@ -3,7 +3,15 @@ import pyspark.sql.functions as F
 from functools import reduce
 
 from pydantic.dataclasses import dataclass
-from pyspark.sql import DataFrame, Row
+from pyspark.sql import DataFrame
+
+from transformations import (
+    add_load_timestamp,
+    anonymize_sensitive_data,
+    extract_file_name_from_metadata,
+    lower_all_column_names,
+    remove_nonsense_columns,
+)
 
 # configuration
 
@@ -15,16 +23,10 @@ BRONZE_SCHEMA = "test_bronze_schema"
 SILVER_SCHEMA = "test_silver_schema"
 GOLD_SCHEMA = "test_gold_schema"
 
-METADATA_COLUMN = "_metadata"
-FILE_NAME_FIELD = "file_name"
-
 TABLES_NAMES_LIST = ["fake_orders", "fake_products", "fake_users"]
-NONSENSE_COLUMNS = ["nonsense_column"]
 
-PRIME_KEY_COLUMNS = tuple(["id"])
+PRIME_KEY_COLUMNS = ("id",)
 TIMESTAMP_COLUMN = "timestamp"
-
-SENSITIVE_COLUMNS = ["personal_email", "personal_address", "person_surname"]
 
 
 # configuration object
@@ -42,84 +44,6 @@ class TablePipelineConfig:
     gold_schema: str = GOLD_SCHEMA
     prime_key_columns: tuple[str, ...] = PRIME_KEY_COLUMNS
     timestamp_column: str = TIMESTAMP_COLUMN
-
-
-# transformation functions, in a production code extract them to a module
-# and add unit tests with pytest
-
-def add_load_timestamp(
-        input_frame: DataFrame,
-        timestamp_col_name: str = "load_timestamp",
-) -> DataFrame:
-    """
-    creates a new column with the current timestamp
-    """
-
-    # add a new column
-    transformed_frame = (
-        input_frame
-        .withColumn(
-            timestamp_col_name,
-            F.current_timestamp()
-        )
-    )
-    return transformed_frame
-
-
-def extract_file_name_from_metadata(
-        input_frame: DataFrame,
-        metadata_column: str = METADATA_COLUMN,
-        file_name_field: str = FILE_NAME_FIELD
-) -> DataFrame:
-    """
-    extracts the file name from the metadata column and adds it as a new column
-    """
-    return input_frame.withColumn(
-        "file_name", F.expr(f"{metadata_column}.{file_name_field}")
-    )
-
-
-def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
-    """
-    lowers all column names in the input frame
-    """
-    lowered_columns = [
-        F.col(column).alias(column.lower())
-        for column in input_frame.columns
-    ]
-    return input_frame.select(lowered_columns)
-
-
-def remove_nonsense_columns(
-        input_frame: DataFrame,
-        columns_to_drop: list[str] = NONSENSE_COLUMNS
-) -> DataFrame:
-    """
-    removes all nonsense columns
-    """
-    return input_frame.drop(*columns_to_drop)
-
-
-def anonymize_sensitive_data(
-        input_frame: DataFrame,
-        sensitive_cols: list[str] = SENSITIVE_COLUMNS,
-        sha_hash_length: int = 256
-) -> DataFrame:
-    """
-    anonymizes sensitive columns
-    """
-    input_cols = input_frame.columns
-    # create transormation dict for columns if exist in the dataframe
-    transformation_dict = {
-        col: F.sha2(F.col(col), sha_hash_length).alias(col)
-        for col in sensitive_cols
-        if col in input_cols
-    }
-    # transform sensitive cols if needed and replace sensitive values
-    if transformation_dict:
-        return input_frame.withColumns(transformation_dict)
-    # otherwise return source frame 
-    return input_frame
 
 
 # declarative stream tables, in a production code extract them to a module
@@ -285,3 +209,4 @@ def aggregate_gold_tables(
 if __name__ == "__main__":
     run_all_pipelines()
     aggregate_gold_tables()
+

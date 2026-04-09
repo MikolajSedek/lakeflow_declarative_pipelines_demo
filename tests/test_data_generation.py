@@ -13,6 +13,7 @@ from data_generation import FrameConfig, generate_list_of_rows
 # Shared fixture – parametrized over all row types
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(params=["users", "products", "orders"])
 def any_row_type(request):
     return request.param
@@ -21,6 +22,7 @@ def any_row_type(request):
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – common behaviour
 # ---------------------------------------------------------------------------
+
 
 class TestGenerateListOfRowsCommon:
     @pytest.mark.parametrize("num_rows", [0, 1, 5, 10])
@@ -46,6 +48,7 @@ class TestGenerateListOfRowsCommon:
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – users
 # ---------------------------------------------------------------------------
+
 
 class TestUsersRows:
     EXPECTED_FIELDS = {
@@ -78,6 +81,7 @@ class TestUsersRows:
 # generate_list_of_rows – products
 # ---------------------------------------------------------------------------
 
+
 class TestProductsRows:
     EXPECTED_FIELDS = {
         "id",
@@ -108,6 +112,7 @@ class TestProductsRows:
 # generate_list_of_rows – orders
 # ---------------------------------------------------------------------------
 
+
 class TestOrdersRows:
     EXPECTED_FIELDS = {
         "id",
@@ -135,6 +140,7 @@ class TestOrdersRows:
 # ---------------------------------------------------------------------------
 # FrameConfig
 # ---------------------------------------------------------------------------
+
 
 class TestFrameConfig:
     def test_stores_name(self) -> None:

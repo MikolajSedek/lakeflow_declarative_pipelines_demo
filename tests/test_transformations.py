@@ -18,6 +18,7 @@ from transformations import (
 # add_load_timestamp
 # ---------------------------------------------------------------------------
 
+
 class TestAddLoadTimestamp:
     @pytest.mark.parametrize("col_name", ["load_timestamp", "ingested_at", "ts"])
     def test_column_is_created(self, simple_df, col_name: str) -> None:
@@ -46,6 +47,7 @@ class TestAddLoadTimestamp:
 # extract_file_name_from_metadata
 # ---------------------------------------------------------------------------
 
+
 class TestExtractFileNameFromMetadata:
     def test_file_name_column_added(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
@@ -57,9 +59,7 @@ class TestExtractFileNameFromMetadata:
         result = extract_file_name_from_metadata(
             metadata_df, metadata_column="meta", file_name_field="file_name"
         )
-        assert {row["file_name"] for row in result.collect()} == {
-            "orders.csv", "products.csv"
-        }
+        assert {row["file_name"] for row in result.collect()} == {"orders.csv", "products.csv"}
 
     def test_original_columns_preserved(self, metadata_df) -> None:
         result = extract_file_name_from_metadata(
@@ -78,13 +78,17 @@ class TestExtractFileNameFromMetadata:
 # lower_all_column_names
 # ---------------------------------------------------------------------------
 
+
 class TestLowerAllColumnNames:
-    @pytest.mark.parametrize("input_cols,expected_cols", [
-        (["ID", "Value"], ["id", "value"]),
-        (["id", "value"], ["id", "value"]),
-        (["Person_Name", "SURNAME"], ["person_name", "surname"]),
-        (["MixedCase"], ["mixedcase"]),
-    ])
+    @pytest.mark.parametrize(
+        "input_cols,expected_cols",
+        [
+            (["ID", "Value"], ["id", "value"]),
+            (["id", "value"], ["id", "value"]),
+            (["Person_Name", "SURNAME"], ["person_name", "surname"]),
+            (["MixedCase"], ["mixedcase"]),
+        ],
+    )
     def test_columns_are_lowercased(
         self, spark: SparkSession, input_cols: list, expected_cols: list
     ) -> None:
@@ -105,13 +109,17 @@ class TestLowerAllColumnNames:
 # remove_nonsense_columns
 # ---------------------------------------------------------------------------
 
+
 class TestRemoveNonsenseColumns:
-    @pytest.mark.parametrize("columns_to_drop,expected_remaining", [
-        (["nonsense_column"], {"id", "important"}),
-        (["id", "nonsense_column"], {"important"}),
-        (["nonexistent"], {"id", "nonsense_column", "important"}),
-        ([], {"id", "nonsense_column", "important"}),
-    ])
+    @pytest.mark.parametrize(
+        "columns_to_drop,expected_remaining",
+        [
+            (["nonsense_column"], {"id", "important"}),
+            (["id", "nonsense_column"], {"important"}),
+            (["nonexistent"], {"id", "nonsense_column", "important"}),
+            ([], {"id", "nonsense_column", "important"}),
+        ],
+    )
     def test_correct_columns_remain(
         self, nonsense_df, columns_to_drop: list, expected_remaining: set
     ) -> None:
@@ -127,19 +135,21 @@ class TestRemoveNonsenseColumns:
 # anonymize_sensitive_data
 # ---------------------------------------------------------------------------
 
+
 class TestAnonymizeSensitiveData:
-    @pytest.mark.parametrize("col_name", [
-        "personal_email", "person_surname", "personal_address"
-    ])
+    @pytest.mark.parametrize("col_name", ["personal_email", "person_surname", "personal_address"])
     def test_sensitive_column_is_hashed(self, sensitive_df, col_name: str) -> None:
         original = sensitive_df.first()[col_name]
         result = anonymize_sensitive_data(sensitive_df, sensitive_cols=[col_name])
         assert result.first()[col_name] != original
 
-    @pytest.mark.parametrize("hash_length,expected_hex_len", [
-        (256, 64),
-        (512, 128),
-    ])
+    @pytest.mark.parametrize(
+        "hash_length,expected_hex_len",
+        [
+            (256, 64),
+            (512, 128),
+        ],
+    )
     def test_hash_output_length(
         self, sensitive_df, hash_length: int, expected_hex_len: int
     ) -> None:

@@ -12,7 +12,7 @@ repos:
     rev: v1.20.0
     hooks:
       - id: mypy
-        additional_dependencies: [pydantic, types-logzero]
+        additional_dependencies: [pydantic]
         args: [--ignore-missing-imports]
         files: ^(transformations|data_generation)\.py$
 

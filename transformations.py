@@ -17,8 +17,8 @@ SENSITIVE_COLUMNS = ["personal_email", "personal_address", "person_surname"]
 
 
 def add_load_timestamp(
-        input_frame: DataFrame,
-        timestamp_col_name: str = "load_timestamp",
+    input_frame: DataFrame,
+    timestamp_col_name: str = "load_timestamp",
 ) -> DataFrame:
     """
     Adds a new column with the current timestamp.
@@ -27,32 +27,27 @@ def add_load_timestamp(
 
 
 def extract_file_name_from_metadata(
-        input_frame: DataFrame,
-        metadata_column: str = METADATA_COLUMN,
-        file_name_field: str = FILE_NAME_FIELD,
+    input_frame: DataFrame,
+    metadata_column: str = METADATA_COLUMN,
+    file_name_field: str = FILE_NAME_FIELD,
 ) -> DataFrame:
     """
     Extracts the file name from the metadata column and adds it as a new column.
     """
-    return input_frame.withColumn(
-        "file_name", F.expr(f"{metadata_column}.{file_name_field}")
-    )
+    return input_frame.withColumn("file_name", F.expr(f"{metadata_column}.{file_name_field}"))
 
 
 def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
     """
     Lowercases all column names in the input frame.
     """
-    lowered_columns = [
-        F.col(column).alias(column.lower())
-        for column in input_frame.columns
-    ]
+    lowered_columns = [F.col(column).alias(column.lower()) for column in input_frame.columns]
     return input_frame.select(lowered_columns)
 
 
 def remove_nonsense_columns(
-        input_frame: DataFrame,
-        columns_to_drop: list[str] = NONSENSE_COLUMNS,
+    input_frame: DataFrame,
+    columns_to_drop: list[str] = NONSENSE_COLUMNS,
 ) -> DataFrame:
     """
     Drops the specified columns from the input frame.
@@ -64,9 +59,9 @@ def remove_nonsense_columns(
 
 
 def anonymize_sensitive_data(
-        input_frame: DataFrame,
-        sensitive_cols: list[str] = SENSITIVE_COLUMNS,
-        sha_hash_length: int = 256,
+    input_frame: DataFrame,
+    sensitive_cols: list[str] = SENSITIVE_COLUMNS,
+    sha_hash_length: int = 256,
 ) -> DataFrame:
     """
     Replaces sensitive column values with their SHA-2 hash.

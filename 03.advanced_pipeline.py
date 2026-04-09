@@ -31,11 +31,13 @@ TIMESTAMP_COLUMN = "timestamp"
 
 # configuration object
 
+
 @dataclass(frozen=True)
 class TablePipelineConfig:
     """
     configuration for a single table pipeline
     """
+
     table_name: str
     root_source_path: str = SOURCE_PATH_ROOT
     target_catalog: str = TARGET_CATALOG
@@ -48,12 +50,13 @@ class TablePipelineConfig:
 
 # declarative stream tables, in a production code extract them to a module
 
+
 def create_raw_bronze_table(
-        bronze_table_name: str,
-        table_path: str,
-        source_format: str = SOURCE_FORMAT,
-        header: bool = True,
-        infer_schema: bool = True,
+    bronze_table_name: str,
+    table_path: str,
+    source_format: str = SOURCE_FORMAT,
+    header: bool = True,
+    infer_schema: bool = True,
 ) -> None:
     """
     creates bronze table from a given source with basic transforms
@@ -70,18 +73,13 @@ def create_raw_bronze_table(
             .load(table_path)
         )
         # run basic transforms
-        transformed_source = (
-            raw_source
-            .transform(extract_file_name_from_metadata)
-            .transform(add_load_timestamp)
+        transformed_source = raw_source.transform(extract_file_name_from_metadata).transform(
+            add_load_timestamp
         )
         return transformed_source
 
 
-def create_silver_staging_table(
-        silver_table_name: str,
-        bronze_table_path: str
-) -> None:
+def create_silver_staging_table(silver_table_name: str, bronze_table_path: str) -> None:
     """
     creates silver staging table from bronze table
     """
@@ -90,8 +88,7 @@ def create_silver_staging_table(
     def silver_staging_table():
         bronze_streaming_frame = dlt.readStream(bronze_table_path)
         silver_table = (
-            bronze_streaming_frame
-            .transform(remove_nonsense_columns)
+            bronze_streaming_frame.transform(remove_nonsense_columns)
             .transform(lower_all_column_names)
             .transform(anonymize_sensitive_data)
         )
@@ -99,31 +96,28 @@ def create_silver_staging_table(
 
 
 def create_gold_merged_table(
-        silver_table_name: str,
-        gold_table_name: str,
-        prime_key_columns: tuple[str, ...] = PRIME_KEY_COLUMNS,
-        timestamp_column: str = TIMESTAMP_COLUMN
+    silver_table_name: str,
+    gold_table_name: str,
+    prime_key_columns: tuple[str, ...] = PRIME_KEY_COLUMNS,
+    timestamp_column: str = TIMESTAMP_COLUMN,
 ) -> None:
     """
     creates gold table from silver staging table
     """
 
     # create target streaming frame
-    dlt.create_streaming_table(
-        name=gold_table_name,
-        comment="gold table"
-    )
+    dlt.create_streaming_table(name=gold_table_name, comment="gold table")
     # merge into target using key cols and timestamp
     dlt.create_auto_cdc_flow(
         source=silver_table_name,
         target=gold_table_name,
         keys=list(prime_key_columns),
-        sequence_by=timestamp_column
+        sequence_by=timestamp_column,
     )
 
 
 def run_single_pipeline(
-        tb_config: TablePipelineConfig,
+    tb_config: TablePipelineConfig,
 ) -> None:
     """
     create a single table pipeline by:
@@ -170,12 +164,12 @@ def run_all_pipelines(table_names_list: list = TABLES_NAMES_LIST) -> None:
 
 
 def aggregate_gold_tables(
-        tables_names_list: list[str] = TABLES_NAMES_LIST,
-        target_catalog: str = TARGET_CATALOG,
-        gold_schema: str = GOLD_SCHEMA,
-        aggregate_table_name: str = "summary_statistics_gold",
-        gold_table_postfix: str = "_clean",
-        id_column: str = "id",
+    tables_names_list: list[str] = TABLES_NAMES_LIST,
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+    aggregate_table_name: str = "summary_statistics_gold",
+    gold_table_postfix: str = "_clean",
+    id_column: str = "id",
 ) -> None:
     """
     aggregates gold tables stats into a single table
@@ -209,4 +203,3 @@ def aggregate_gold_tables(
 if __name__ == "__main__":
     run_all_pipelines()
     aggregate_gold_tables()
-

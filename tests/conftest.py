@@ -33,10 +33,12 @@ def mixed_case_df(spark: SparkSession):
 @pytest.fixture
 def metadata_df(spark: SparkSession):
     """DataFrame with a nested struct column simulating _metadata."""
-    schema = StructType([
-        StructField("id", IntegerType()),
-        StructField("meta", StructType([StructField("file_name", StringType())])),
-    ])
+    schema = StructType(
+        [
+            StructField("id", IntegerType()),
+            StructField("meta", StructType([StructField("file_name", StringType())])),
+        ]
+    )
     return spark.createDataFrame(
         [(1, {"file_name": "orders.csv"}), (2, {"file_name": "products.csv"})],
         schema,

@@ -17,6 +17,7 @@ WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
 # Users Data
 
+
 def generate_users_frame(
     num_users: int = NUM_USERS,
     locale: str = LOCALE,
@@ -40,9 +41,7 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCAL
 
 
 # Orders Data
-def generate_orders_data(
-    num_orders: int = NUM_ORDERS, locale: str = LOCALE
-) -> DataFrame:
+def generate_orders_data(num_orders: int = NUM_ORDERS, locale: str = LOCALE) -> DataFrame:
     """
     Generates fake orders data.
     """
@@ -56,6 +55,7 @@ def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
     Writes a DataFrame to a path.
     """
     config.df.write.mode("append").csv(f"{root_path}/{config.name}", header=True)
+
 
 # COMMAND ----------
 
@@ -92,4 +92,3 @@ if __name__ == "__main__":
         write_frame_config_to_path(WRITE_PATH, config)
 
 # COMMAND ----------
-

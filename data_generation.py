@@ -28,6 +28,8 @@ _VALID_ROW_TYPES = frozenset({"users", "products", "orders"})
 
 DEFAULT_LOCALE = Locale.EN
 
+__all__ = ["FrameConfig", "generate_list_of_rows"]
+
 
 def generate_list_of_rows(
     row_type: str,
@@ -38,7 +40,7 @@ def generate_list_of_rows(
 
     Args:
         row_type: One of "users", "products", "orders".
-        num_rows: Number of rows to generate.
+        num_rows: Number of rows to generate.  Must be non-negative.
         locale: Mimesis Locale enum value (default ``Locale.EN``).
 
     Returns:
@@ -46,7 +48,10 @@ def generate_list_of_rows(
 
     Raises:
         ValueError: If row_type is not one of the supported types.
+        ValueError: If num_rows is negative.
     """
+    if num_rows < 0:
+        raise ValueError(f"num_rows must be non-negative, got {num_rows}")
     if row_type not in _VALID_ROW_TYPES:
         raise ValueError(
             f"Invalid row_type: {row_type!r}. Must be one of {sorted(_VALID_ROW_TYPES)}"

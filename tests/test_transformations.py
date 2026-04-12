@@ -96,7 +96,7 @@ def test_extract_file_name_row_count_unchanged(metadata_df) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_cols,expected_cols",
+    ("input_cols", "expected_cols"),
     [
         (["ID", "Value"], ["id", "value"]),
         (["id", "value"], ["id", "value"]),
@@ -131,7 +131,7 @@ def test_lower_all_column_names_row_count_unchanged(mixed_case_df) -> None:
 
 
 @pytest.mark.parametrize(
-    "columns_to_drop,expected_remaining",
+    ("columns_to_drop", "expected_remaining"),
     [
         (("nonsense_column",), {"id", "important"}),
         (("id", "nonsense_column"), {"important"}),
@@ -167,7 +167,7 @@ def test_anonymize_sensitive_column_is_hashed(sensitive_df, col_name: str) -> No
 
 
 @pytest.mark.parametrize(
-    "hash_length,expected_hex_len",
+    ("hash_length", "expected_hex_len"),
     [
         (256, 64),
         (512, 128),
@@ -210,3 +210,23 @@ def test_anonymize_no_sensitive_columns_returns_frame_unchanged(simple_df) -> No
     """Should return the DataFrame unmodified when the sensitive list is empty."""
     result = anonymize_sensitive_data(simple_df, sensitive_cols=())
     assert result.first()["value"] == "a"
+
+
+@pytest.mark.parametrize("invalid_length", [1, 128, 255, 513, -1])
+def test_anonymize_invalid_hash_length_raises_value_error(
+    sensitive_df, invalid_length: int
+) -> None:
+    """Should raise ValueError when sha_hash_length is not a valid SHA-2 bit length."""
+    with pytest.raises(ValueError, match="sha_hash_length must be one of"):
+        anonymize_sensitive_data(
+            sensitive_df, sensitive_cols=("personal_email",), sha_hash_length=invalid_length
+        )
+
+
+@pytest.mark.parametrize("valid_length", [0, 224, 256, 384, 512])
+def test_anonymize_valid_hash_lengths_accepted(sensitive_df, valid_length: int) -> None:
+    """Should accept all valid SHA-2 bit lengths without raising."""
+    result = anonymize_sensitive_data(
+        sensitive_df, sensitive_cols=("personal_email",), sha_hash_length=valid_length
+    )
+    assert "personal_email" in result.columns

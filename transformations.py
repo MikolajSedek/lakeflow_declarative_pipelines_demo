@@ -17,6 +17,16 @@ NONSENSE_COLUMNS: tuple[str, ...] = ("nonsense_column",)
 
 SENSITIVE_COLUMNS: tuple[str, ...] = ("personal_email", "personal_address", "person_surname")
 
+_VALID_SHA2_LENGTHS: frozenset[int] = frozenset({0, 224, 256, 384, 512})
+
+__all__ = [
+    "add_load_timestamp",
+    "anonymize_sensitive_data",
+    "extract_file_name_from_metadata",
+    "lower_all_column_names",
+    "remove_nonsense_columns",
+]
+
 
 def add_load_timestamp(
     input_frame: DataFrame,
@@ -86,9 +96,22 @@ def anonymize_sensitive_data(
 
     Only columns that are present in the frame are transformed.
 
+    Args:
+        input_frame: Source DataFrame.
+        sensitive_cols: Column names to anonymize (defaults to ``SENSITIVE_COLUMNS``).
+        sha_hash_length: SHA-2 bit length.  Must be one of 0, 224, 256, 384, 512.
+
     Returns:
         DataFrame with sensitive columns replaced by their hash values.
+
+    Raises:
+        ValueError: If *sha_hash_length* is not a valid SHA-2 bit length.
     """
+    if sha_hash_length not in _VALID_SHA2_LENGTHS:
+        raise ValueError(
+            f"sha_hash_length must be one of {sorted(_VALID_SHA2_LENGTHS)}, "
+            f"got {sha_hash_length}"
+        )
     if sensitive_cols is None:
         sensitive_cols = SENSITIVE_COLUMNS
     input_cols = input_frame.columns

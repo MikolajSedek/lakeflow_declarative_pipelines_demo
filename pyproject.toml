@@ -15,8 +15,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit>=1.9.0",
+    "codespell>=2.4.0",
+    "interrogate>=1.7.0",
     "mypy>=1.10.0",
     "pre-commit>=4.0.0",
+    "pydocstyle>=6.3.0",
     "pytest>=9.0.0",
     "ruff>=0.4.0",
 ]
@@ -57,3 +60,21 @@ exclude = [
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B311"]  # random is fine for fake/test data generation
+
+[tool.pydocstyle]
+convention = "google"
+# D100: module docstrings checked by interrogate (more flexible ignore rules)
+# D104: missing docstring in public package (__init__.py)
+# D212: conflicts with project's multi-line docstring style (summary on second line)
+add-ignore = ["D100", "D104", "D212"]
+# Only check production modules; notebooks reference Databricks globals
+match = "(transformations|data_generation)\\.py"
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-nested-functions = true
+ignore-nested-classes = true
+ignore-semiprivate = true
+fail-under = 95
+verbose = 1

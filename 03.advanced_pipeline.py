@@ -1,3 +1,5 @@
+"""Advanced Lakeflow Declarative Pipeline with bronze/silver/gold medallion architecture."""
+
 from functools import reduce
 
 import pyspark.sql.functions as F

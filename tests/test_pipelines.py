@@ -44,12 +44,15 @@ class MockGraphElementRegistry(GraphElementRegistry):
         self.flows: list[Flow] = []
 
     def register_output(self, output: Output) -> None:
+        """Record an output in the mock registry."""
         self.outputs.append(output)
 
     def register_flow(self, flow: Flow) -> None:
+        """Record a flow in the mock registry."""
         self.flows.append(flow)
 
     def register_sql(self, sql_text: str, file_path: Path) -> None:
+        """No-op: SQL registration is not needed for Python-only tests."""
         pass  # not needed for Python-only tests
 
 
@@ -67,6 +70,8 @@ def registry():
 
 
 class TestMaterializedViewDecorator:
+    """Tests for the dp.materialized_view decorator."""
+
     def test_registers_materialized_view_output(self, registry):
         """Should register a MaterializedView output with the given name."""
 
@@ -126,6 +131,8 @@ class TestMaterializedViewDecorator:
 
 
 class TestTableDecorator:
+    """Tests for the dp.table (streaming table) decorator."""
+
     def test_registers_streaming_table_output(self, registry):
         """Should register a StreamingTable output with the given name."""
 
@@ -174,6 +181,8 @@ class TestTableDecorator:
 
 
 class TestTemporaryViewDecorator:
+    """Tests for the dp.temporary_view decorator."""
+
     def test_registers_temporary_view_output(self, registry):
         """Should register a TemporaryView output with the given name."""
 
@@ -212,6 +221,8 @@ class TestTemporaryViewDecorator:
 
 
 class TestCreateStreamingTable:
+    """Tests for the dp.create_streaming_table imperative API."""
+
     def test_creates_streaming_table_output(self, registry):
         """Should register a StreamingTable output via the imperative API."""
         create_streaming_table(name="explicit_st")
@@ -240,6 +251,8 @@ class TestCreateStreamingTable:
 
 
 class TestAppendFlow:
+    """Tests for the dp.append_flow decorator."""
+
     def test_registers_flow_targeting_existing_table(self, registry):
         """Should register a flow that targets a pre-existing streaming table."""
         create_streaming_table(name="target_table")
@@ -270,6 +283,8 @@ class TestAppendFlow:
 
 
 class TestMultipleRegistrations:
+    """Tests for registering multiple outputs in a single context."""
+
     def test_multiple_outputs_registered(self, registry):
         """Should register all four outputs when different decorators are used together."""
 
@@ -316,6 +331,8 @@ class TestMultipleRegistrations:
 
 
 class TestOutsideContext:
+    """Tests that decorators raise errors outside a registration context."""
+
     def test_materialized_view_outside_context_raises(self):
         """Should raise PySparkRuntimeError when used outside a registration context."""
         from pyspark.errors.exceptions.base import PySparkRuntimeError

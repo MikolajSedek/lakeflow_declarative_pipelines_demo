@@ -15,11 +15,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Run pre-commit hooks
-        run: pre-commit run --all-files
+      - uses: pre-commit/action@v3.0.1
 
   test:
     name: Unit tests (pytest)

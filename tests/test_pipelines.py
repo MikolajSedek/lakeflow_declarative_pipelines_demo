@@ -9,9 +9,7 @@ a Databricks Runtime environment and cannot be tested locally.  These tests focu
 on the *structure* and *registration* side of the pipeline code.
 """
 
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from pyspark.pipelines import (
@@ -21,6 +19,7 @@ from pyspark.pipelines import (
     table,
     temporary_view,
 )
+from pyspark.pipelines.flow import Flow
 from pyspark.pipelines.graph_element_registry import (
     GraphElementRegistry,
     graph_element_registration_context,
@@ -31,7 +30,6 @@ from pyspark.pipelines.output import (
     StreamingTable,
     TemporaryView,
 )
-from pyspark.pipelines.flow import Flow
 
 # ---------------------------------------------------------------------------
 # Test helper: mock registry for capturing decorator registrations
@@ -319,15 +317,6 @@ class TestTablePipelineConfig:
     """Tests for the pipeline configuration dataclass."""
 
     def test_default_values(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        # We need to mock dp.create_auto_cdc_flow since it doesn't exist in OSS Spark
-        mock_dp = MagicMock()
-        sys.modules.setdefault("pyspark.pipelines", MagicMock())
-
-        # Import with real module path
-        from importlib import import_module
-
-        # Clean import approach - just test the config directly
         from pydantic.dataclasses import dataclass
 
         @dataclass(frozen=True)
@@ -384,7 +373,7 @@ class TestTablePipelineConfig:
             target_catalog: str = "test_catalog"
 
         config = TablePipelineConfig(table_name="test")
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, TypeError)):
             config.table_name = "other"
 
 

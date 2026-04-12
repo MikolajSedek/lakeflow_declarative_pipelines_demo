@@ -96,7 +96,7 @@ Generates synthetic datasets using the [mimesis](https://mimesis.name/) library 
 | `fake_orders`  | id, productid, price, product\_name, …                | CSV      |
 
 **Key design decisions:**
-- Column naming is **intentionally inconsistent** (mixed case, varying conventions) to demonstrate downstream normalization in the Silver layer.
+- Column naming is **intentionally inconsistent** across all three datasets (e.g. `Person_Name` vs `person_surname`, `productid` vs `product_name`) to simulate real-world messy sources and demonstrate downstream normalization in the Silver layer.
 - Each dataset includes a `nonsense_column` to demonstrate column pruning.
 - Writes use `ThreadPoolExecutor` for concurrent I/O – Spark write actions release the GIL, so threads provide a real speedup over sequential writes.
 

@@ -8,6 +8,7 @@ jobs:
   lint:
     name: Lint (pre-commit)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -22,6 +23,7 @@ jobs:
   test-pure:
     name: Unit tests – pure Python (no SparkSession)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -42,6 +44,7 @@ jobs:
   test-spark:
     name: Unit tests – PySpark (SparkSession required)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:

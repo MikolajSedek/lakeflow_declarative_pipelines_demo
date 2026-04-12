@@ -38,10 +38,25 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "S"]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit
+    "UP",    # pyupgrade
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print (disallow print statements)
+    "RUF",   # Ruff-specific rules
+    "PT",    # flake8-pytest-style
+    "PERF",  # Perflint (performance anti-patterns)
+]
 ignore = [
-    "S101",  # assert is fine in tests
-    "S311",  # random for fake data generation is acceptable
+    "S101",   # assert is fine in tests
+    "S311",   # random for fake data generation is acceptable
+    "RUF003", # en-dash in comments is valid English punctuation
 ]
 
 [tool.ruff.lint.per-file-ignores]

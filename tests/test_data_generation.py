@@ -99,6 +99,13 @@ def test_invalid_type_raises_value_error(invalid_type: str) -> None:
         generate_list_of_rows(invalid_type, num_rows=1)
 
 
+@pytest.mark.parametrize("negative_num", [-1, -10, -100])
+def test_negative_num_rows_raises_value_error(negative_num: int) -> None:
+    """Should raise ValueError when num_rows is negative."""
+    with pytest.raises(ValueError, match="num_rows must be non-negative"):
+        generate_list_of_rows("users", num_rows=negative_num)
+
+
 # ---------------------------------------------------------------------------
 # generate_list_of_rows – users
 # ---------------------------------------------------------------------------

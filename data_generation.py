@@ -9,7 +9,7 @@ import random
 from typing import NamedTuple
 
 import pendulum
-from logzero import logger
+from loguru import logger
 from mimesis import Address, Finance, Generic, Person
 from pyspark.sql import DataFrame, Row
 

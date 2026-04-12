@@ -22,7 +22,11 @@ def add_load_timestamp(
     input_frame: DataFrame,
     timestamp_col_name: str = "load_timestamp",
 ) -> DataFrame:
-    """Add a new column with the current timestamp."""
+    """Add a column with the current timestamp to *input_frame*.
+
+    Returns:
+        DataFrame with the additional timestamp column.
+    """
     return input_frame.withColumn(timestamp_col_name, F.current_timestamp())
 
 
@@ -35,6 +39,9 @@ def extract_file_name_from_metadata(
 
     Uses the type-safe ``F.col().getField()`` API instead of ``F.expr()``
     to prevent SQL-injection when parameter values originate from configuration.
+
+    Returns:
+        DataFrame with an added column named *file_name_field*.
     """
     return input_frame.withColumn(
         file_name_field,
@@ -43,7 +50,11 @@ def extract_file_name_from_metadata(
 
 
 def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
-    """Lowercase all column names in the input frame."""
+    """Lowercase all column names in the input frame.
+
+    Returns:
+        DataFrame with every column name lowercased.
+    """
     lowered_columns = [F.col(column).alias(column.lower()) for column in input_frame.columns]
     return input_frame.select(lowered_columns)
 
@@ -55,6 +66,9 @@ def remove_nonsense_columns(
     """Drop the specified columns from the input frame.
 
     Columns that are absent from the frame are silently ignored.
+
+    Returns:
+        DataFrame with the specified columns removed.
     """
     if columns_to_drop is None:
         columns_to_drop = NONSENSE_COLUMNS
@@ -71,6 +85,9 @@ def anonymize_sensitive_data(
     """Replace sensitive column values with their SHA-2 hash.
 
     Only columns that are present in the frame are transformed.
+
+    Returns:
+        DataFrame with sensitive columns replaced by their hash values.
     """
     if sensitive_cols is None:
         sensitive_cols = SENSITIVE_COLUMNS

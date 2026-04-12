@@ -17,7 +17,7 @@ NUM_USERS = 2000
 NUM_PRODUCTS = 1500
 NUM_ORDERS = 3000
 LOCALE = Locale.EN
-WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source"
 
 
 # Users Data

@@ -94,7 +94,7 @@ def test_extract_file_name_row_count_unchanged(metadata_df) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_cols,expected_cols",
+    ("input_cols", "expected_cols"),
     [
         (["ID", "Value"], ["id", "value"]),
         (["id", "value"], ["id", "value"]),
@@ -129,7 +129,7 @@ def test_lower_all_column_names_row_count_unchanged(mixed_case_df) -> None:
 
 
 @pytest.mark.parametrize(
-    "columns_to_drop,expected_remaining",
+    ("columns_to_drop", "expected_remaining"),
     [
         (("nonsense_column",), {"id", "important"}),
         (("id", "nonsense_column"), {"important"}),
@@ -165,7 +165,7 @@ def test_anonymize_sensitive_column_is_hashed(sensitive_df, col_name: str) -> No
 
 
 @pytest.mark.parametrize(
-    "hash_length,expected_hex_len",
+    ("hash_length", "expected_hex_len"),
     [
         (256, 64),
         (512, 128),

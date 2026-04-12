@@ -3,7 +3,7 @@
 from pyspark import pipelines as dp
 
 SOURCE_FORMAT = "csv"
-SOURCE_PATH_ROOT = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+SOURCE_PATH_ROOT = "/Volumes/test_catalog/test_schema/test_volume/fake_source"
 
 TARGET_CATALOG = "test_catalog"
 TARGET_SCHEMA = "test_bronze_schema"

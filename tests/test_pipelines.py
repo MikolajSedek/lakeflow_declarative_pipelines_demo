@@ -376,7 +376,7 @@ class TestTablePipelineConfig:
         @dataclass(frozen=True)
         class TablePipelineConfig:
             table_name: str
-            root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+            root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source"
             target_catalog: str = "test_catalog"
             bronze_schema: str = "test_bronze_schema"
             silver_schema: str = "test_silver_schema"
@@ -400,7 +400,7 @@ class TestTablePipelineConfig:
         @dataclass(frozen=True)
         class TablePipelineConfig:
             table_name: str
-            root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+            root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source"
             target_catalog: str = "test_catalog"
             bronze_schema: str = "test_bronze_schema"
             silver_schema: str = "test_silver_schema"

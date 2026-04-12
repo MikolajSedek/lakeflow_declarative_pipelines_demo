@@ -77,6 +77,9 @@ def remove_nonsense_columns(
     return input_frame.drop(*existing)
 
 
+_VALID_SHA2_BIT_LENGTHS: frozenset[int] = frozenset({0, 224, 256, 384, 512})
+
+
 def anonymize_sensitive_data(
     input_frame: DataFrame,
     sensitive_cols: tuple[str, ...] | None = None,
@@ -86,9 +89,25 @@ def anonymize_sensitive_data(
 
     Only columns that are present in the frame are transformed.
 
+    Args:
+        input_frame: Source DataFrame.
+        sensitive_cols: Column names to anonymize.  Defaults to
+            ``SENSITIVE_COLUMNS``.
+        sha_hash_length: SHA-2 bit length.  Must be one of
+            ``{0, 224, 256, 384, 512}``; any other value would cause Spark's
+            ``sha2`` to silently return **null**, corrupting data.
+
     Returns:
         DataFrame with sensitive columns replaced by their hash values.
+
+    Raises:
+        ValueError: If *sha_hash_length* is not a supported SHA-2 bit length.
     """
+    if sha_hash_length not in _VALID_SHA2_BIT_LENGTHS:
+        raise ValueError(
+            f"Invalid sha_hash_length: {sha_hash_length}. "
+            f"Must be one of {sorted(_VALID_SHA2_BIT_LENGTHS)}"
+        )
     if sensitive_cols is None:
         sensitive_cols = SENSITIVE_COLUMNS
     input_cols = input_frame.columns

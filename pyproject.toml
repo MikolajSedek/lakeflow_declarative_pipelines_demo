@@ -35,10 +35,11 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "S"]
+select = ["E", "F", "W", "I", "B", "S", "UP", "SIM", "C4", "RUF", "PT", "PTH"]
 ignore = [
     "S101",  # assert is fine in tests
     "S311",  # random for fake data generation is acceptable
+    "RUF003",  # en-dashes in comments are intentional style
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -18,7 +18,7 @@ from transformations import (
 # configuration
 
 SOURCE_FORMAT = "csv"
-SOURCE_PATH_ROOT = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+SOURCE_PATH_ROOT = "/Volumes/test_catalog/test_schema/test_volume/fake_source"
 
 TARGET_CATALOG = "test_catalog"
 BRONZE_SCHEMA = "test_bronze_schema"
@@ -185,7 +185,7 @@ def aggregate_gold_tables(
             .withColumn("table_name", F.lit(table_path))
             for table_path in tables_paths
         ]
-        reduced_frame = reduce(DataFrame.union, frames_list)
+        reduced_frame = reduce(DataFrame.unionByName, frames_list)
         return reduced_frame
 
 

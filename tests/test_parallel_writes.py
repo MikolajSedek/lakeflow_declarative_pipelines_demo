@@ -8,9 +8,9 @@ and ``write_all_configs_parallel`` functions and exercise them against a local
 SparkSession.
 """
 
-import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import NamedTuple
 from unittest.mock import patch
 
@@ -54,16 +54,17 @@ def _write_all_configs_parallel(
 # ---------------------------------------------------------------------------
 
 _TMP_ROOT = "/tmp/test_parallel_writes"  # noqa: S108
+_TMP_PATH = Path(_TMP_ROOT)
 
 
 @pytest.fixture(autouse=True)
 def _clean_tmp():
     """Should ensure a clean temp directory before and after every test."""
-    if os.path.exists(_TMP_ROOT):
-        shutil.rmtree(_TMP_ROOT)
+    if _TMP_PATH.exists():
+        shutil.rmtree(_TMP_PATH)
     yield
-    if os.path.exists(_TMP_ROOT):
-        shutil.rmtree(_TMP_ROOT)
+    if _TMP_PATH.exists():
+        shutil.rmtree(_TMP_PATH)
 
 
 @pytest.fixture
@@ -103,7 +104,7 @@ def test_parallel_write_creates_output_directories(three_configs) -> None:
     """Should create one output directory per FrameConfig."""
     _write_all_configs_parallel(_TMP_ROOT, three_configs)
     for cfg in three_configs:
-        assert os.path.isdir(f"{_TMP_ROOT}/{cfg.name}")
+        assert Path(f"{_TMP_ROOT}/{cfg.name}").is_dir()
 
 
 def test_parallel_write_row_counts_match(spark: SparkSession, three_configs) -> None:
@@ -151,7 +152,7 @@ def test_parallel_write_data_values_correct(spark: SparkSession, three_configs) 
 def test_parallel_write_empty_configs_is_noop() -> None:
     """Should complete without error when given an empty config list."""
     _write_all_configs_parallel(_TMP_ROOT, [])
-    assert not os.path.exists(_TMP_ROOT)
+    assert not _TMP_PATH.exists()
 
 
 def test_parallel_write_single_config(spark: SparkSession, users_df) -> None:

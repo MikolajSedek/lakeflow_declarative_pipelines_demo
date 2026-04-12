@@ -14,6 +14,7 @@ End-to-end demonstration of **Databricks Lakeflow Declarative Pipelines** (the s
   - [01 – Fake Data Generation](#01--fake-data-generation)
   - [02 – Simple Pipeline](#02--simple-pipeline)
   - [03 – Advanced Pipeline (Medallion)](#03--advanced-pipeline-medallion)
+  - [04 – SCD Type 2 Pipeline](#04--scd-type-2-pipeline)
 - [Library Modules](#library-modules)
   - [data\_generation.py](#data_generationpy)
   - [transformations.py](#transformationspy)
@@ -48,14 +49,24 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
    Volumes                                     │ (Materialized   │
                                                │      View)      │
                                                └─────────────────┘
+                                                       │
+                                                       ▼
+                                               ┌─────────────────┐
+                                               │  SCD Type 2     │
+                                               │ (Gold - History)│
+                                               │ • Track changes │
+                                               │ • __START_AT    │
+                                               │ • __END_AT      │
+                                               └─────────────────┘
 ```
 
 | Layer   | Table Type        | API Used                              | Purpose                                        |
-|---------|-------------------|---------------------------------------|-------------------------------------------------|
+|---------|-------------------|---------------------------------------|------------------------------------------------|
 | Bronze  | Streaming Table   | `@dp.table`                           | Raw ingestion with metadata & timestamps        |
 | Silver  | Streaming Table   | `@dp.table`                           | Cleansing, anonymization, column normalization   |
 | Gold    | Streaming Table   | `dp.create_streaming_table` + CDC     | Deduplicated, merge-ready business entities      |
 | Summary | Materialized View | `@dp.materialized_view`               | Cross-table aggregation statistics               |
+| SCD2    | Streaming Table   | `dp.create_streaming_table` + CDC Type 2 | Historical tracking with temporal validity    |
 
 ---
 
@@ -66,6 +77,7 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 ├── 01.create_fake_data.py      # Databricks notebook – generates fake CSV data
 ├── 02.simple_pipeline.py       # Databricks notebook – simple materialized views
 ├── 03.advanced_pipeline.py     # Databricks notebook – full medallion pipeline
+├── 04.scd_genie_code_pipeline.py # Databricks notebook – SCD Type 2 historical tracking
 ├── data_generation.py          # Pure-Python data generation helpers (no Spark dependency)
 ├── transformations.py          # Pure PySpark transformation functions
 ├── tests/
@@ -125,6 +137,33 @@ The full **Bronze → Silver → Gold** medallion pipeline with:
 | Agg    | `aggregate_gold_tables`        | Unions row/distinct-ID counts across all gold tables into a summary materialized view |
 
 **Configuration** is centralized in the `TablePipelineConfig` frozen dataclass (Pydantic), making it easy to override catalogs, schemas, and key columns per environment.
+
+### 04 – SCD Type 2 Pipeline
+
+**File:** `04.scd_genie_code_pipeline.py`
+
+A specialized pipeline implementing **Slowly Changing Dimension Type 2** (SCD Type 2) for tracking historical changes in business entities:
+
+| Feature                  | Configuration                                                 |
+|--------------------------|---------------------------------------------------------------|
+| **Source**               | `test_catalog.test_silver_schema.fake_orders_staging`         |
+| **Target**               | `test_catalog.test_gold_schema.fake_orders_scd2`              |
+| **Primary Key**          | `id`                                                          |
+| **Sequence Column**      | `timestamp`                                                   |
+| **History Tracking**     | `productid` only (other columns use SCD Type 1 semantics)     |
+| **Output Columns**       | Original columns + `__START_AT` + `__END_AT` (temporal validity) |
+
+**Key capabilities:**
+- **Selective history tracking:** Only tracks changes to the `productid` column using `track_history_column_list`. Changes to other columns (like `price` or `product_name`) update the current row without creating history.
+- **Temporal validity:** The target table automatically includes `__START_AT` and `__END_AT` columns that mark when each version of a record was valid.
+- **Point-in-time queries:** Query historical state at any point in time or join facts to the dimension version that was active during a transaction.
+- **Audit trail:** Maintains complete history of product changes for compliance and analysis.
+
+**Use cases:**
+- Track product reassignments in order history
+- Maintain customer address history for compliance
+- Audit dimension changes over time
+- Enable temporal joins between facts and dimensions
 
 ---
 
@@ -223,7 +262,7 @@ pre-commit run --all-files
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and pull request:
 
 | Job          | What It Does                               | Timeout |
-|--------------|--------------------------------------------|---------|
+|--------------|--------------------------------------------|---------||
 | `lint`       | Runs all pre-commit hooks                  | 10 min  |
 | `test-pure`  | Pure-Python tests (`-m "not spark"`)       | 10 min  |
 | `test-spark` | PySpark tests (`-m spark`)                 | 15 min  |
@@ -291,7 +330,7 @@ CREATE SCHEMA IF NOT EXISTS test_catalog.test_gold_schema;
 2. **Run `01.create_fake_data.py`** as a notebook to generate CSV source data in the volume.
 3. **Create an ETL Pipeline** (Lakeflow Declarative Pipeline) in the Databricks UI:
    - Set the default catalog to `test_catalog`.
-   - Add `03.advanced_pipeline.py` (or `02.simple_pipeline.py`) as the pipeline source.
+   - Add `03.advanced_pipeline.py` (or `02.simple_pipeline.py` or `04.scd_genie_code_pipeline.py`) as the pipeline source.
 4. **Start** the pipeline – Databricks handles orchestration, dependency resolution, and incremental processing automatically.
 
 > **Note:** `dp.create_auto_cdc_flow` is a Databricks-only API and is not available in the open-source `pyspark.pipelines` module.

@@ -1,8 +1,8 @@
 from functools import reduce
 
-import dlt
 import pyspark.sql.functions as F
 from pydantic.dataclasses import dataclass
+from pyspark import pipelines as dp
 from pyspark.sql import DataFrame
 
 from transformations import (
@@ -59,10 +59,10 @@ def create_raw_bronze_table(
     infer_schema: bool = True,
 ) -> None:
     """
-    creates bronze table from a given source with basic transforms
+    Creates a bronze streaming table from a given source with basic transforms.
     """
 
-    @dlt.table(name=bronze_table_name)
+    @dp.table(name=bronze_table_name)
     def raw_bronze_table():
         # raw streaming source
         raw_source = (
@@ -81,12 +81,12 @@ def create_raw_bronze_table(
 
 def create_silver_staging_table(silver_table_name: str, bronze_table_path: str) -> None:
     """
-    creates silver staging table from bronze table
+    Creates a silver streaming staging table from a bronze table.
     """
 
-    @dlt.table(name=silver_table_name)
+    @dp.table(name=silver_table_name)
     def silver_staging_table():
-        bronze_streaming_frame = dlt.readStream(bronze_table_path)
+        bronze_streaming_frame = spark.readStream.table(bronze_table_path)
         silver_table = (
             bronze_streaming_frame.transform(remove_nonsense_columns)
             .transform(lower_all_column_names)
@@ -102,13 +102,16 @@ def create_gold_merged_table(
     timestamp_column: str = TIMESTAMP_COLUMN,
 ) -> None:
     """
-    creates gold table from silver staging table
+    Creates a gold table from silver staging table using CDC merge.
+
+    Note: dp.create_auto_cdc_flow is a Databricks-only API and is not available
+    in open-source Apache Spark's pyspark.pipelines module.
     """
 
-    # create target streaming frame
-    dlt.create_streaming_table(name=gold_table_name, comment="gold table")
-    # merge into target using key cols and timestamp
-    dlt.create_auto_cdc_flow(
+    # create target streaming table
+    dp.create_streaming_table(name=gold_table_name, comment="gold table")
+    # merge into target using key cols and timestamp (Databricks-only)
+    dp.create_auto_cdc_flow(
         source=silver_table_name,
         target=gold_table_name,
         keys=list(prime_key_columns),
@@ -120,10 +123,10 @@ def run_single_pipeline(
     tb_config: TablePipelineConfig,
 ) -> None:
     """
-    create a single table pipeline by:
-    1. creating a bronze table
-    2. creating a silver staging table
-    3. merging staging into gold table
+    Create a single table pipeline by:
+    1. creating a bronze streaming table
+    2. creating a silver streaming staging table
+    3. merging staging into gold table using CDC
     """
 
     # create name paths and prefixes
@@ -154,7 +157,7 @@ def run_single_pipeline(
 
 def run_all_pipelines(table_names_list: list = TABLES_NAMES_LIST) -> None:
     """
-    runs all pipelines for a given list of tables
+    Runs all pipelines for a given list of tables.
     """
     for table_name in table_names_list:
         # prepare table config
@@ -172,7 +175,7 @@ def aggregate_gold_tables(
     id_column: str = "id",
 ) -> None:
     """
-    aggregates gold tables stats into a single table
+    Aggregates gold tables stats into a single materialized view table.
     """
     # we need table paths
     tables_paths = [
@@ -182,12 +185,12 @@ def aggregate_gold_tables(
     # and a gold table name
     gold_table_name = f"{target_catalog}.{gold_schema}.{aggregate_table_name}"
 
-    # so we can have a summary table
-    @dlt.table(name=gold_table_name)
+    # so we can have a summary materialized view
+    @dp.materialized_view(name=gold_table_name)
     def summary_statistics_table():
         # create a list of frames
         frames_list = [
-            dlt.read(table_path)
+            spark.read.table(table_path)
             .agg(
                 F.count(F.lit(1)).alias("table_rows"),
                 F.count(id_column).alias("unique_ids"),

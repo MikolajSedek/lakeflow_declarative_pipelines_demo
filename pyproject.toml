@@ -39,7 +39,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Databricks notebooks: spark/dlt are injected globals, not importable
+# Databricks notebooks: spark/dp are injected globals, not importable locally
 "01.create_fake_data.py" = ["F821"]
 "02.simple_pipeline.py" = ["F821"]
 "03.advanced_pipeline.py" = ["F821"]
@@ -47,7 +47,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.10"
 ignore_missing_imports = true
-# Databricks notebooks reference spark/dlt globals that don't exist locally
+# Databricks notebooks reference spark/dp globals that don't exist locally
 exclude = [
     "01\\.create_fake_data\\.py",
     "02\\.simple_pipeline\\.py",

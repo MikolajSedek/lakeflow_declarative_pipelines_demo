@@ -251,6 +251,7 @@ dependencies:
 | Skill | Description |
 |-------|-------------|
 | [`pytest-coverage`](https://github.com/github/awesome-copilot/blob/main/skills/pytest-coverage/SKILL.md) | Run pytest with coverage, identify uncovered lines, and iteratively improve coverage to 100% |
+| [`pyspark-style-guide`](.github/copilot/skills/pyspark-style-guide/SKILL.md) | Write idiomatic, performant PySpark code following the [Palantir PySpark Style Guide](https://github.com/palantir/pyspark-style-guide) |
 
 ### Setup
 

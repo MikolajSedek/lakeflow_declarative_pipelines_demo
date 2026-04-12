@@ -3,6 +3,14 @@ Pure data generation helpers for the fake data pipeline.
 
 These functions have no SparkSession dependency and can be unit-tested without
 a running Spark cluster.
+
+Note on parallelism: ``generate_list_of_rows`` is CPU-bound (mimesis provider
+calls are pure Python).  ``ThreadPoolExecutor`` was benchmarked up to 325 000
+rows and is consistently ~5-15 % **slower** than sequential execution due to
+GIL contention and thread-management overhead.  ``ProcessPoolExecutor`` avoids
+the GIL but adds Row-serialisation cost that negates any gain at the current
+scale.  Keep generation sequential unless profiling on production volumes
+proves otherwise.
 """
 
 from __future__ import annotations

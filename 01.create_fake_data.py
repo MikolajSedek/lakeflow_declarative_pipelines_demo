@@ -4,6 +4,9 @@
 
 # COMMAND ----------
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from loguru import logger
 from mimesis.enums import Locale
 from pyspark.sql import DataFrame
 
@@ -58,6 +61,27 @@ def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
     config.df.write.mode("append").csv(f"{root_path}/{config.name}", header=True)
 
 
+def write_all_configs_parallel(
+    root_path: str,
+    configs: list[FrameConfig],
+    max_workers: int = 3,
+) -> None:
+    """Write multiple FrameConfigs to storage concurrently.
+
+    Each Spark ``.write`` action is I/O-bound and releases the GIL while the
+    JVM executes the job, so ``ThreadPoolExecutor`` lets the driver submit all
+    write jobs at the same time instead of waiting for each one sequentially.
+    """
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(write_frame_config_to_path, root_path, cfg): cfg.name for cfg in configs
+        }
+        for future in as_completed(futures):
+            table_name = futures[future]
+            future.result()  # re-raises any write exception
+            logger.info("Finished writing {}", table_name)
+
+
 # COMMAND ----------
 
 # MAGIC %md RUN CODE
@@ -84,12 +108,13 @@ def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
 # COMMAND ----------
 
 if __name__ == "__main__":
-    # prepare fake frames
-    fake_users_config = FrameConfig("fake_users", generate_users_frame())
-    fake_products_config = FrameConfig("fake_products", generate_products_data())
-    fake_orders_config = FrameConfig("fake_orders", generate_orders_data())
-    # persist frames to volume
-    for config in [fake_users_config, fake_products_config, fake_orders_config]:
-        write_frame_config_to_path(WRITE_PATH, config)
+    fake_configs = [
+        FrameConfig("fake_users", generate_users_frame()),
+        FrameConfig("fake_products", generate_products_data()),
+        FrameConfig("fake_orders", generate_orders_data()),
+    ]
+    # Spark write actions are I/O-bound and release the GIL, so submitting
+    # all three jobs concurrently via threads is faster than writing sequentially.
+    write_all_configs_parallel(WRITE_PATH, fake_configs)
 
 # COMMAND ----------

@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install mimesis pendulum logzero
+# MAGIC %pip install mimesis==19.1.0 pendulum==3.2.0 loguru==0.7.3
 # MAGIC
 
 # COMMAND ----------

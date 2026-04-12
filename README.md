@@ -81,11 +81,12 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 ├── data_generation.py          # Pure-Python data generation helpers (no Spark dependency)
 ├── transformations.py          # Pure PySpark transformation functions
 ├── tests/
-│   ├── conftest.py             # Shared fixtures (SparkSession, sample DataFrames)
-│   ├── test_data_generation.py # Tests for data generation (pure Python, no Spark)
-│   ├── test_parallel_writes.py # Tests for concurrent DataFrame writes (Spark)
-│   ├── test_pipelines.py       # Tests for pipeline decorator registration (Spark)
-│   └── test_transformations.py # Tests for transformation functions (Spark)
+│   ├── conftest.py                    # Shared fixtures (SparkSession, sample DataFrames)
+│   ├── test_data_generation.py        # Tests for data generation (pure Python, no Spark)
+│   ├── test_parallel_writes.py        # Tests for concurrent DataFrame writes (Spark)
+│   ├── test_pipelines.py              # Tests for pipeline decorator registration (Spark)
+│   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline structure (Spark)
+│   └── test_transformations.py        # Tests for transformation functions (Spark)
 ├── pyproject.toml              # Project metadata, tool configuration
 ├── requirements.txt            # Runtime + test dependencies
 ├── .pre-commit-config.yaml     # Pre-commit hook definitions
@@ -225,12 +226,13 @@ pytest tests/ -m spark -v
 
 ### Test Coverage Summary
 
-| Test Module              | Tests | What's Covered                                                  |
-|--------------------------|-------|-----------------------------------------------------------------|
-| `test_data_generation`   | 25    | Row counts, field names, value ranges, input validation, FrameConfig |
-| `test_transformations`   | 30    | Column addition/removal, lowercasing, hashing, edge cases, validation |
-| `test_parallel_writes`   | 14    | Concurrent writes, append semantics, error propagation, edge cases |
-| `test_pipelines`         | 53    | Decorator registration, flow creation, name inference, config freezing |
+| Test Module                    | Tests | What's Covered                                                  |
+|--------------------------------|-------|-----------------------------------------------------------------|
+| `test_data_generation`         | 16    | Row counts, field names, value ranges, input validation, FrameConfig |
+| `test_transformations`         | 22    | Column addition/removal, lowercasing, hashing, edge cases, validation |
+| `test_parallel_writes`         | 13    | Concurrent writes, append semantics, error propagation, edge cases |
+| `test_pipelines`               | 31    | Decorator registration, flow creation, name inference, config freezing |
+| `test_scd_genie_code_pipeline` | 24    | SCD Type 2 pipeline constants, streaming table registration, CDC flow invocation |
 
 The test suite uses a **session-scoped** local `SparkSession` (`local[1]`, UI disabled, 1 shuffle partition) to minimize JVM startup overhead.
 
@@ -262,7 +264,7 @@ pre-commit run --all-files
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and pull request:
 
 | Job          | What It Does                               | Timeout |
-|--------------|--------------------------------------------|---------||
+|--------------|--------------------------------------------|---------|
 | `lint`       | Runs all pre-commit hooks                  | 10 min  |
 | `test-pure`  | Pure-Python tests (`-m "not spark"`)       | 10 min  |
 | `test-spark` | PySpark tests (`-m spark`)                 | 15 min  |

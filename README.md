@@ -35,29 +35,22 @@ End-to-end demonstration of **Databricks Lakeflow Declarative Pipelines** (the s
 The project follows the **Medallion Architecture** pattern widely used in Databricks lakehouse environments:
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   BRONZE (Raw)  │────▶│ SILVER (Staging) │────▶│  GOLD (Clean)   │
-│                 │     │                  │     │                 │
-│ • Auto Loader   │     │ • Drop columns   │     │ • CDC merge     │
-│ • File metadata │     │ • Lowercase cols │     │ • Deduplication │
-│ • Load timestamp│     │ • SHA-2 hashing  │     │ • Aggregations  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         ▲                                              │
-         │                                              ▼
-   CSV files in                                ┌─────────────────┐
-   Unity Catalog                               │  Summary Stats  │
-   Volumes                                     │ (Materialized   │
-                                               │      View)      │
-                                               └─────────────────┘
-                                                       │
-                                                       ▼
-                                               ┌─────────────────┐
-                                               │  SCD Type 2     │
-                                               │ (Gold - History)│
-                                               │ • Track changes │
-                                               │ • __START_AT    │
-                                               │ • __END_AT      │
-                                               └─────────────────┘
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   BRONZE (Raw)  │────▶│  SILVER (Staging) │────▶│  GOLD (Clean)   │
+│                 │     │                   │     │                 │
+│ • Auto Loader   │     │ • Drop columns    │     │ • CDC merge     │
+│ • File metadata │     │ • Lowercase cols  │     │ • Deduplication │
+│ • Load timestamp│     │ • SHA-2 hashing   │     │ • Aggregations  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+         ▲                       │                        │
+         │                       ▼                        ▼
+   CSV files in          ┌─────────────────┐     ┌─────────────────┐
+   Unity Catalog         │  SCD Type 2     │     │  Summary Stats  │
+   Volumes               │ (Gold - History)│     │ (Materialized   │
+                         │ • Track changes │     │      View)      │
+                         │ • __START_AT    │     └─────────────────┘
+                         │ • __END_AT      │
+                         └─────────────────┘
 ```
 
 | Layer   | Table Type        | API Used                              | Purpose                                        |
@@ -66,7 +59,7 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 | Silver  | Streaming Table   | `@dp.table`                           | Cleansing, anonymization, column normalization   |
 | Gold    | Streaming Table   | `dp.create_streaming_table` + CDC     | Deduplicated, merge-ready business entities      |
 | Summary | Materialized View | `@dp.materialized_view`               | Cross-table aggregation statistics               |
-| SCD2    | Streaming Table   | `dp.create_streaming_table` + CDC Type 2 | Historical tracking with temporal validity    |
+| SCD2    | Streaming Table   | `dp.create_streaming_table` + CDC Type 2 | Historical tracking with temporal validity; reads from Silver, writes to Gold schema |
 
 ---
 

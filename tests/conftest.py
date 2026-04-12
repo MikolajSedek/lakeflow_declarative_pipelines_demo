@@ -1,8 +1,35 @@
 """Shared pytest fixtures for the Lakeflow pipeline test suite."""
 
+from pathlib import Path
+
 import pytest
+from pyspark.pipelines.flow import Flow
+from pyspark.pipelines.graph_element_registry import (
+    GraphElementRegistry,
+    graph_element_registration_context,
+)
+from pyspark.pipelines.output import Output
 from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+
+class MockGraphElementRegistry(GraphElementRegistry):
+    """Collects all outputs and flows registered during a pipeline definition."""
+
+    def __init__(self):
+        self.outputs: list[Output] = []
+        self.flows: list[Flow] = []
+
+    def register_output(self, output: Output) -> None:
+        """Record an output in the mock registry."""
+        self.outputs.append(output)
+
+    def register_flow(self, flow: Flow) -> None:
+        """Record a flow in the mock registry."""
+        self.flows.append(flow)
+
+    def register_sql(self, sql_text: str, file_path: Path) -> None:
+        """No-op: SQL registration is not needed for Python-only tests."""
 
 
 @pytest.fixture(scope="session")
@@ -63,3 +90,11 @@ def nonsense_df(spark: SparkSession):
         [(1, 99, "keep"), (2, 42, "also_keep")],
         ["id", "nonsense_column", "important"],
     )
+
+
+@pytest.fixture
+def registry():
+    """Provide a fresh MockGraphElementRegistry inside a registration context."""
+    reg = MockGraphElementRegistry()
+    with graph_element_registration_context(reg):
+        yield reg

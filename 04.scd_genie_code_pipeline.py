@@ -35,8 +35,7 @@ def create_orders_scd2_table() -> None:
     # Step 1: Create the target streaming table for SCD Type 2
     # This will automatically include __START_AT and __END_AT columns
     dp.create_streaming_table(
-        name=target_table_name,
-        comment="SCD Type 2 table tracking product changes in orders"
+        name=target_table_name, comment="SCD Type 2 table tracking product changes in orders"
     )
 
     # Step 2: Define the Auto CDC flow with SCD Type 2 and selective history tracking
@@ -47,7 +46,7 @@ def create_orders_scd2_table() -> None:
         sequence_by=SEQUENCE_COLUMN,
         stored_as_scd_type=2,
         track_history_column_list=HISTORY_TRACKED_COLUMNS,
-        ignore_null_updates=True
+        ignore_null_updates=True,
     )
 
 

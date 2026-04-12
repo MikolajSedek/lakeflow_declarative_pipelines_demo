@@ -123,9 +123,7 @@ class TestTargetTableName:
     def test_full_table_name(self):
         """Should produce a three-part catalog.schema.table name."""
         expected = "test_catalog.test_gold_schema.fake_orders_scd2"
-        actual = (
-            f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
-        )
+        actual = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
         assert actual == expected
 
     def test_table_name_has_three_parts(self):

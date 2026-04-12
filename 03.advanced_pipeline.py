@@ -1,9 +1,19 @@
-import dlt
-import pyspark.sql.functions as F
+"""Advanced Lakeflow Declarative Pipeline with bronze/silver/gold medallion architecture."""
+
 from functools import reduce
 
+import pyspark.sql.functions as F
 from pydantic.dataclasses import dataclass
-from pyspark.sql import DataFrame, Row
+from pyspark import pipelines as dp
+from pyspark.sql import DataFrame
+
+from transformations import (
+    add_load_timestamp,
+    anonymize_sensitive_data,
+    extract_file_name_from_metadata,
+    lower_all_column_names,
+    remove_nonsense_columns,
+)
 
 # configuration
 
@@ -15,25 +25,25 @@ BRONZE_SCHEMA = "test_bronze_schema"
 SILVER_SCHEMA = "test_silver_schema"
 GOLD_SCHEMA = "test_gold_schema"
 
-METADATA_COLUMN = "_metadata"
-FILE_NAME_FIELD = "file_name"
+TABLES_NAMES: tuple[str, ...] = ("fake_orders", "fake_products", "fake_users")
 
-TABLES_NAMES_LIST = ["fake_orders", "fake_products", "fake_users"]
-NONSENSE_COLUMNS = ["nonsense_column"]
-
-PRIME_KEY_COLUMNS = tuple(["id"])
+PRIME_KEY_COLUMNS: tuple[str, ...] = ("id",)
 TIMESTAMP_COLUMN = "timestamp"
 
-SENSITIVE_COLUMNS = ["personal_email", "personal_address", "person_surname"]
+# table name suffixes – extracted as constants to avoid inline magic strings
+# (Palantir PySpark style guide: avoid literal strings in logic)
+BRONZE_TABLE_SUFFIX = "_raw"
+SILVER_TABLE_SUFFIX = "_staging"
+GOLD_TABLE_SUFFIX = "_clean"
 
 
 # configuration object
 
+
 @dataclass(frozen=True)
 class TablePipelineConfig:
-    """
-    configuration for a single table pipeline
-    """
+    """Configuration for a single table pipeline."""
+
     table_name: str
     root_source_path: str = SOURCE_PATH_ROOT
     target_catalog: str = TARGET_CATALOG
@@ -44,100 +54,22 @@ class TablePipelineConfig:
     timestamp_column: str = TIMESTAMP_COLUMN
 
 
-# transformation functions, in a production code extract them to a module
-# and add unit tests with pytest
-
-def add_load_timestamp(
-        input_frame: DataFrame,
-        timestamp_col_name: str = "load_timestamp",
-) -> DataFrame:
-    """
-    creates a new column with the current timestamp
-    """
-
-    # add a new column
-    transformed_frame = (
-        input_frame
-        .withColumn(
-            timestamp_col_name,
-            F.current_timestamp()
-        )
-    )
-    return transformed_frame
-
-
-def extract_file_name_from_metadata(
-        input_frame: DataFrame,
-        metadata_column: str = METADATA_COLUMN,
-        file_name_field: str = FILE_NAME_FIELD
-) -> DataFrame:
-    """
-    extracts the file name from the metadata column and adds it as a new column
-    """
-    return input_frame.withColumn(
-        "file_name", F.expr(f"{metadata_column}.{file_name_field}")
-    )
-
-
-def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
-    """
-    lowers all column names in the input frame
-    """
-    lowered_columns = [
-        F.col(column).alias(column.lower())
-        for column in input_frame.columns
-    ]
-    return input_frame.select(lowered_columns)
-
-
-def remove_nonsense_columns(
-        input_frame: DataFrame,
-        columns_to_drop: list[str] = NONSENSE_COLUMNS
-) -> DataFrame:
-    """
-    removes all nonsense columns
-    """
-    return input_frame.drop(*columns_to_drop)
-
-
-def anonymize_sensitive_data(
-        input_frame: DataFrame,
-        sensitive_cols: list[str] = SENSITIVE_COLUMNS,
-        sha_hash_length: int = 256
-) -> DataFrame:
-    """
-    anonymizes sensitive columns
-    """
-    input_cols = input_frame.columns
-    # create transormation dict for columns if exist in the dataframe
-    transformation_dict = {
-        col: F.sha2(F.col(col), sha_hash_length).alias(col)
-        for col in sensitive_cols
-        if col in input_cols
-    }
-    # transform sensitive cols if needed and replace sensitive values
-    if transformation_dict:
-        return input_frame.withColumns(transformation_dict)
-    # otherwise return source frame 
-    return input_frame
-
-
 # declarative stream tables, in a production code extract them to a module
 
+
 def create_raw_bronze_table(
-        bronze_table_name: str,
-        table_path: str,
-        source_format: str = SOURCE_FORMAT,
-        header: bool = True,
-        infer_schema: bool = True,
+    bronze_table_name: str,
+    table_path: str,
+    source_format: str = SOURCE_FORMAT,
+    header: bool = True,
+    infer_schema: bool = True,
 ) -> None:
     """
-    creates bronze table from a given source with basic transforms
+    Creates a bronze streaming table from a given source with basic transforms.
     """
 
-    @dlt.table(name=bronze_table_name)
+    @dp.table(name=bronze_table_name)
     def raw_bronze_table():
-        # raw streaming source
         raw_source = (
             spark.readStream.format("cloudFiles")
             .option("cloudFiles.format", source_format)
@@ -145,29 +77,22 @@ def create_raw_bronze_table(
             .option("inferSchema", infer_schema)
             .load(table_path)
         )
-        # run basic transforms
-        transformed_source = (
-            raw_source
-            .transform(extract_file_name_from_metadata)
-            .transform(add_load_timestamp)
+        transformed_source = raw_source.transform(extract_file_name_from_metadata).transform(
+            add_load_timestamp
         )
         return transformed_source
 
 
-def create_silver_staging_table(
-        silver_table_name: str,
-        bronze_table_path: str
-) -> None:
+def create_silver_staging_table(silver_table_name: str, bronze_table_path: str) -> None:
     """
-    creates silver staging table from bronze table
+    Creates a silver streaming staging table from a bronze table.
     """
 
-    @dlt.table(name=silver_table_name)
+    @dp.table(name=silver_table_name)
     def silver_staging_table():
-        bronze_streaming_frame = dlt.readStream(bronze_table_path)
+        bronze_streaming_frame = spark.readStream.table(bronze_table_path)
         silver_table = (
-            bronze_streaming_frame
-            .transform(remove_nonsense_columns)
+            bronze_streaming_frame.transform(remove_nonsense_columns)
             .transform(lower_all_column_names)
             .transform(anonymize_sensitive_data)
         )
@@ -175,110 +100,92 @@ def create_silver_staging_table(
 
 
 def create_gold_merged_table(
-        silver_table_name: str,
-        gold_table_name: str,
-        prime_key_columns: tuple[str, ...] = PRIME_KEY_COLUMNS,
-        timestamp_column: str = TIMESTAMP_COLUMN
+    silver_table_name: str,
+    gold_table_name: str,
+    prime_key_columns: tuple[str, ...] = PRIME_KEY_COLUMNS,
+    timestamp_column: str = TIMESTAMP_COLUMN,
 ) -> None:
     """
-    creates gold table from silver staging table
-    """
+    Creates a gold table from silver staging table using CDC merge.
 
-    # create target streaming frame
-    dlt.create_streaming_table(
-        name=gold_table_name,
-        comment="gold table"
-    )
-    # merge into target using key cols and timestamp
-    dlt.create_auto_cdc_flow(
+    Note: dp.create_auto_cdc_flow is a Databricks-only API and is not available
+    in open-source Apache Spark's pyspark.pipelines module.
+    """
+    dp.create_streaming_table(name=gold_table_name, comment="gold table")
+    dp.create_auto_cdc_flow(
         source=silver_table_name,
         target=gold_table_name,
         keys=list(prime_key_columns),
-        sequence_by=timestamp_column
+        sequence_by=timestamp_column,
     )
 
 
 def run_single_pipeline(
-        tb_config: TablePipelineConfig,
+    table_config: TablePipelineConfig,
 ) -> None:
     """
-    create a single table pipeline by:
-    1. creating a bronze table
-    2. creating a silver staging table
-    3. merging staging into gold table
+    Create a single table pipeline (bronze → silver → gold).
     """
+    source_table_path = f"{table_config.root_source_path}/{table_config.table_name}"
+    bronze_prefix = f"{table_config.target_catalog}.{table_config.bronze_schema}"
+    silver_prefix = f"{table_config.target_catalog}.{table_config.silver_schema}"
+    gold_prefix = f"{table_config.target_catalog}.{table_config.gold_schema}"
 
-    # create name paths and prefixes
-    source_table_path = f"{tb_config.root_source_path}/{tb_config.table_name}"
-    bronze_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.bronze_schema}"
-    silver_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.silver_schema}"
-    gold_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.gold_schema}"
+    bronze_table_name = f"{bronze_prefix}.{table_config.table_name}{BRONZE_TABLE_SUFFIX}"
+    silver_table_name = f"{silver_prefix}.{table_config.table_name}{SILVER_TABLE_SUFFIX}"
+    gold_table_name = f"{gold_prefix}.{table_config.table_name}{GOLD_TABLE_SUFFIX}"
 
-    # create names for tables in schemas and catalogs
-    bronze_table_name = f"{bronze_schema_name_prefix}.{tb_config.table_name}_raw"
-    silver_table_name = f"{silver_schema_name_prefix}.{tb_config.table_name}_staging"
-    gold_table_name = f"{gold_schema_name_prefix}.{tb_config.table_name}_clean"
-
-    # 1. create a bronze streaming table
     create_raw_bronze_table(bronze_table_name, source_table_path)
-
-    # 2. create silver streaming staging table
     create_silver_staging_table(silver_table_name, bronze_table_name)
-
-    # 3. stream merge staging into gold using keys and timestamp
     create_gold_merged_table(
         silver_table_name=silver_table_name,
         gold_table_name=gold_table_name,
-        prime_key_columns=tb_config.prime_key_columns,
-        timestamp_column=tb_config.timestamp_column,
+        prime_key_columns=table_config.prime_key_columns,
+        timestamp_column=table_config.timestamp_column,
     )
 
 
-def run_all_pipelines(table_names_list: list = TABLES_NAMES_LIST) -> None:
+def run_all_pipelines(table_names: tuple[str, ...] = TABLES_NAMES) -> None:
     """
-    runs all pipelines for a given list of tables
+    Runs all pipelines for a given list of tables.
     """
-    for table_name in table_names_list:
-        # prepare table config
-        tb_config = TablePipelineConfig(table_name=table_name)
-        # run with the config
-        run_single_pipeline(tb_config)
+    for table_name in table_names:
+        table_config = TablePipelineConfig(table_name=table_name)
+        run_single_pipeline(table_config)
 
 
 def aggregate_gold_tables(
-        tables_names_list: list[str] = TABLES_NAMES_LIST,
-        target_catalog: str = TARGET_CATALOG,
-        gold_schema: str = GOLD_SCHEMA,
-        aggregate_table_name: str = "summary_statistics_gold",
-        gold_table_postfix: str = "_clean",
-        id_column: str = "id",
+    tables_names: tuple[str, ...] = TABLES_NAMES,
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+    aggregate_table_name: str = "summary_statistics_gold",
+    gold_table_postfix: str = GOLD_TABLE_SUFFIX,
+    id_column: str = "id",
 ) -> None:
     """
-    aggregates gold tables stats into a single table
+    Aggregates gold tables stats into a single materialized view table.
     """
-    # we need table paths
+    if not tables_names:
+        return
+
     tables_paths = [
         f"{target_catalog}.{gold_schema}.{table_name}{gold_table_postfix}"
-        for table_name in tables_names_list
+        for table_name in tables_names
     ]
-    # and a gold table name
     gold_table_name = f"{target_catalog}.{gold_schema}.{aggregate_table_name}"
 
-    # so we can have a summary table
-    @dlt.table(name=gold_table_name)
+    @dp.materialized_view(name=gold_table_name)
     def summary_statistics_table():
-        # create a list of frames
         frames_list = [
-            dlt.read(table_path)
+            spark.read.table(table_path)
             .agg(
-                F.count(F.lit(1)).alias("table_rows"),
-                F.count(id_column).alias("unique_ids"),
+                F.count("*").alias("table_rows"),
+                F.countDistinct(id_column).alias("unique_ids"),
             )
             .withColumn("table_name", F.lit(table_path))
             for table_path in tables_paths
         ]
-        # reduce to a single frame using union
-        reduced_frame = reduce(DataFrame.unionAll, frames_list)
+        reduced_frame = reduce(DataFrame.union, frames_list)
         return reduced_frame
 
 

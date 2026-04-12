@@ -1,0 +1,98 @@
+[project]
+name = "lakeflow-declarative-pipelines-demo"
+version = "0.1.0"
+description = "Demo code for running Lakeflow Declarative Pipelines in Databricks Free Edition"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "loguru>=0.7.3",
+    "mimesis>=19.1.0",
+    "pendulum>=3.2.0",
+    "pydantic>=2.12.5",
+    "pyspark>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bandit>=1.9.0",
+    "codespell>=2.4.0",
+    "interrogate>=1.7.0",
+    "mypy>=1.10.0",
+    "pre-commit>=4.0.0",
+    "pydocstyle>=6.3.0",
+    "pytest>=9.0.0",
+    "ruff>=0.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "spark: tests that require a live SparkSession (deselect with '-m not spark')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit
+    "UP",    # pyupgrade
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print (disallow print statements)
+    "RUF",   # Ruff-specific rules
+    "PT",    # flake8-pytest-style
+    "PERF",  # Perflint (performance anti-patterns)
+]
+ignore = [
+    "S101",   # assert is fine in tests
+    "S311",   # random for fake data generation is acceptable
+    "RUF003", # en-dash in comments is valid English punctuation
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Databricks notebooks: spark/dp are injected globals, not importable locally
+"01.create_fake_data.py" = ["F821"]
+"02.simple_pipeline.py" = ["F821"]
+"03.advanced_pipeline.py" = ["F821"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# Databricks notebooks reference spark/dp globals that don't exist locally
+exclude = [
+    "01\\.create_fake_data\\.py",
+    "02\\.simple_pipeline\\.py",
+    "03\\.advanced_pipeline\\.py",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B311"]  # random is fine for fake/test data generation
+
+[tool.pydocstyle]
+convention = "google"
+# D100: module docstrings checked by interrogate (more flexible ignore rules)
+# D104: missing docstring in public package (__init__.py)
+# D212: conflicts with project's multi-line docstring style (summary on second line)
+add-ignore = ["D100", "D104", "D212"]
+# Only check production modules; notebooks reference Databricks globals
+match = "(transformations|data_generation)\\.py"
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-nested-functions = true
+ignore-nested-classes = true
+ignore-semiprivate = true
+fail-under = 95
+verbose = 1

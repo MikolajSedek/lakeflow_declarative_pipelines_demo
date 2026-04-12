@@ -1,3 +1,5 @@
+"""Simple Lakeflow Declarative Pipeline that creates materialized views from CSV sources."""
+
 from pyspark import pipelines as dp
 
 SOURCE_FORMAT = "csv"
@@ -21,11 +23,13 @@ def create_simple_materialized_view(
     Creates a simple materialized view table using Lakeflow Declarative Pipelines.
     """
     table_path = f"{catalog}.{schema}.{table_name}_simple_table"
-    source_path = f"{source_path}/{table_name}"
+    full_source_path = f"{source_path}/{table_name}"
 
     @dp.materialized_view(name=table_path)
     def simple_table():
-        source_frame = spark.read.format(file_format).option("header", header).load(source_path)
+        source_frame = (
+            spark.read.format(file_format).option("header", header).load(full_source_path)
+        )
         return source_frame
 
 

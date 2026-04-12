@@ -5,23 +5,27 @@ These functions are framework-agnostic (no DLT or Spark-session dependencies)
 and can be unit-tested with a local SparkSession.
 """
 
+from __future__ import annotations
+
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 
 METADATA_COLUMN = "_metadata"
 FILE_NAME_FIELD = "file_name"
 
-NONSENSE_COLUMNS = ["nonsense_column"]
+NONSENSE_COLUMNS: tuple[str, ...] = ("nonsense_column",)
 
-SENSITIVE_COLUMNS = ["personal_email", "personal_address", "person_surname"]
+SENSITIVE_COLUMNS: tuple[str, ...] = ("personal_email", "personal_address", "person_surname")
 
 
 def add_load_timestamp(
     input_frame: DataFrame,
     timestamp_col_name: str = "load_timestamp",
 ) -> DataFrame:
-    """
-    Adds a new column with the current timestamp.
+    """Add a column with the current timestamp to *input_frame*.
+
+    Returns:
+        DataFrame with the additional timestamp column.
     """
     return input_frame.withColumn(timestamp_col_name, F.current_timestamp())
 
@@ -31,15 +35,25 @@ def extract_file_name_from_metadata(
     metadata_column: str = METADATA_COLUMN,
     file_name_field: str = FILE_NAME_FIELD,
 ) -> DataFrame:
+    """Extract the file name from the metadata struct column.
+
+    Uses the type-safe ``F.col().getField()`` API instead of ``F.expr()``
+    to prevent SQL-injection when parameter values originate from configuration.
+
+    Returns:
+        DataFrame with an added column named *file_name_field*.
     """
-    Extracts the file name from the metadata column and adds it as a new column.
-    """
-    return input_frame.withColumn("file_name", F.expr(f"{metadata_column}.{file_name_field}"))
+    return input_frame.withColumn(
+        file_name_field,
+        F.col(metadata_column).getField(file_name_field),
+    )
 
 
 def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
-    """
-    Lowercases all column names in the input frame.
+    """Lowercase all column names in the input frame.
+
+    Returns:
+        DataFrame with every column name lowercased.
     """
     lowered_columns = [F.col(column).alias(column.lower()) for column in input_frame.columns]
     return input_frame.select(lowered_columns)
@@ -47,12 +61,17 @@ def lower_all_column_names(input_frame: DataFrame) -> DataFrame:
 
 def remove_nonsense_columns(
     input_frame: DataFrame,
-    columns_to_drop: list[str] = NONSENSE_COLUMNS,
+    columns_to_drop: tuple[str, ...] | None = None,
 ) -> DataFrame:
-    """
-    Drops the specified columns from the input frame.
+    """Drop the specified columns from the input frame.
+
     Columns that are absent from the frame are silently ignored.
+
+    Returns:
+        DataFrame with the specified columns removed.
     """
+    if columns_to_drop is None:
+        columns_to_drop = NONSENSE_COLUMNS
     existing_cols = set(input_frame.columns)
     existing = [c for c in columns_to_drop if c in existing_cols]
     return input_frame.drop(*existing)
@@ -60,13 +79,18 @@ def remove_nonsense_columns(
 
 def anonymize_sensitive_data(
     input_frame: DataFrame,
-    sensitive_cols: list[str] = SENSITIVE_COLUMNS,
+    sensitive_cols: tuple[str, ...] | None = None,
     sha_hash_length: int = 256,
 ) -> DataFrame:
-    """
-    Replaces sensitive column values with their SHA-2 hash.
+    """Replace sensitive column values with their SHA-2 hash.
+
     Only columns that are present in the frame are transformed.
+
+    Returns:
+        DataFrame with sensitive columns replaced by their hash values.
     """
+    if sensitive_cols is None:
+        sensitive_cols = SENSITIVE_COLUMNS
     input_cols = input_frame.columns
     transformation_dict = {
         col: F.sha2(F.col(col), sha_hash_length).alias(col)

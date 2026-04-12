@@ -44,18 +44,21 @@ class MockGraphElementRegistry(GraphElementRegistry):
         self.flows: list[Flow] = []
 
     def register_output(self, output: Output) -> None:
+        """Record an output in the mock registry."""
         self.outputs.append(output)
 
     def register_flow(self, flow: Flow) -> None:
+        """Record a flow in the mock registry."""
         self.flows.append(flow)
 
     def register_sql(self, sql_text: str, file_path: Path) -> None:
+        """No-op: SQL registration is not needed for Python-only tests."""
         pass  # not needed for Python-only tests
 
 
 @pytest.fixture
 def registry():
-    """Provides a fresh MockGraphElementRegistry inside a registration context."""
+    """Should provide a fresh MockGraphElementRegistry inside a registration context."""
     reg = MockGraphElementRegistry()
     with graph_element_registration_context(reg):
         yield reg
@@ -67,7 +70,11 @@ def registry():
 
 
 class TestMaterializedViewDecorator:
+    """Tests for the dp.materialized_view decorator."""
+
     def test_registers_materialized_view_output(self, registry):
+        """Should register a MaterializedView output with the given name."""
+
         @materialized_view(name="my_mv")
         def my_mv():
             pass
@@ -77,6 +84,8 @@ class TestMaterializedViewDecorator:
         assert mv_outputs[0].name == "my_mv"
 
     def test_registers_associated_flow(self, registry):
+        """Should register an associated flow targeting the materialized view."""
+
         @materialized_view(name="mv_with_flow")
         def mv_with_flow():
             pass
@@ -86,6 +95,8 @@ class TestMaterializedViewDecorator:
         assert matching[0].name == "mv_with_flow"
 
     def test_flow_stores_query_function(self, registry):
+        """Should store the decorated function as a callable in the flow."""
+
         @materialized_view(name="mv_func")
         def mv_func():
             return "dummy"
@@ -94,6 +105,8 @@ class TestMaterializedViewDecorator:
         assert callable(flow.func)
 
     def test_materialized_view_with_comment(self, registry):
+        """Should persist the comment metadata on the materialized view."""
+
         @materialized_view(name="mv_commented", comment="A test MV")
         def mv_commented():
             pass
@@ -102,6 +115,8 @@ class TestMaterializedViewDecorator:
         assert mv.comment == "A test MV"
 
     def test_materialized_view_infers_name_from_function(self, registry):
+        """Should infer the view name from the function name when not specified."""
+
         @materialized_view
         def auto_named_mv():
             pass
@@ -116,7 +131,11 @@ class TestMaterializedViewDecorator:
 
 
 class TestTableDecorator:
+    """Tests for the dp.table (streaming table) decorator."""
+
     def test_registers_streaming_table_output(self, registry):
+        """Should register a StreamingTable output with the given name."""
+
         @table(name="my_streaming")
         def my_streaming():
             pass
@@ -126,6 +145,8 @@ class TestTableDecorator:
         assert st_outputs[0].name == "my_streaming"
 
     def test_registers_associated_flow(self, registry):
+        """Should register an associated flow targeting the streaming table."""
+
         @table(name="streaming_with_flow")
         def streaming_with_flow():
             pass
@@ -134,6 +155,8 @@ class TestTableDecorator:
         assert len(matching) == 1
 
     def test_table_infers_name_from_function(self, registry):
+        """Should infer the table name from the function name when not specified."""
+
         @table
         def auto_named_table():
             pass
@@ -142,6 +165,8 @@ class TestTableDecorator:
         assert st.name == "auto_named_table"
 
     def test_table_with_partition_cols(self, registry):
+        """Should store partition column metadata on the streaming table."""
+
         @table(name="partitioned", partition_cols=["date", "region"])
         def partitioned():
             pass
@@ -156,7 +181,11 @@ class TestTableDecorator:
 
 
 class TestTemporaryViewDecorator:
+    """Tests for the dp.temporary_view decorator."""
+
     def test_registers_temporary_view_output(self, registry):
+        """Should register a TemporaryView output with the given name."""
+
         @temporary_view(name="my_tv")
         def my_tv():
             pass
@@ -166,6 +195,8 @@ class TestTemporaryViewDecorator:
         assert tv_outputs[0].name == "my_tv"
 
     def test_registers_associated_flow(self, registry):
+        """Should register an associated flow targeting the temporary view."""
+
         @temporary_view(name="tv_flow")
         def tv_flow():
             pass
@@ -174,6 +205,8 @@ class TestTemporaryViewDecorator:
         assert len(matching) == 1
 
     def test_temporary_view_infers_name(self, registry):
+        """Should infer the view name from the function name when not specified."""
+
         @temporary_view
         def inferred_name_tv():
             pass
@@ -188,7 +221,10 @@ class TestTemporaryViewDecorator:
 
 
 class TestCreateStreamingTable:
+    """Tests for the dp.create_streaming_table imperative API."""
+
     def test_creates_streaming_table_output(self, registry):
+        """Should register a StreamingTable output via the imperative API."""
         create_streaming_table(name="explicit_st")
 
         st_outputs = [o for o in registry.outputs if isinstance(o, StreamingTable)]
@@ -196,11 +232,13 @@ class TestCreateStreamingTable:
         assert st_outputs[0].name == "explicit_st"
 
     def test_does_not_register_flow(self, registry):
+        """Should not register any flow when using create_streaming_table."""
         create_streaming_table(name="no_flow_st")
 
         assert len(registry.flows) == 0
 
     def test_with_comment(self, registry):
+        """Should persist the comment metadata on the streaming table."""
         create_streaming_table(name="commented_st", comment="gold table")
 
         st = next(o for o in registry.outputs if o.name == "commented_st")
@@ -213,7 +251,10 @@ class TestCreateStreamingTable:
 
 
 class TestAppendFlow:
+    """Tests for the dp.append_flow decorator."""
+
     def test_registers_flow_targeting_existing_table(self, registry):
+        """Should register a flow that targets a pre-existing streaming table."""
         create_streaming_table(name="target_table")
 
         @append_flow(target="target_table", name="my_append")
@@ -225,6 +266,7 @@ class TestAppendFlow:
         assert matching[0].name == "my_append"
 
     def test_flow_func_is_callable(self, registry):
+        """Should store the decorated function as a callable in the append flow."""
         create_streaming_table(name="callable_target")
 
         @append_flow(target="callable_target", name="callable_flow")
@@ -241,7 +283,11 @@ class TestAppendFlow:
 
 
 class TestMultipleRegistrations:
+    """Tests for registering multiple outputs in a single context."""
+
     def test_multiple_outputs_registered(self, registry):
+        """Should register all four outputs when different decorators are used together."""
+
         @materialized_view(name="mv1")
         def mv1():
             pass
@@ -261,6 +307,8 @@ class TestMultipleRegistrations:
         assert output_names == {"mv1", "st1", "tv1", "st2"}
 
     def test_output_types_are_distinct(self, registry):
+        """Should produce exactly one output of each decorator type."""
+
         @materialized_view(name="check_mv")
         def check_mv():
             pass
@@ -283,7 +331,10 @@ class TestMultipleRegistrations:
 
 
 class TestOutsideContext:
+    """Tests that decorators raise errors outside a registration context."""
+
     def test_materialized_view_outside_context_raises(self):
+        """Should raise PySparkRuntimeError when used outside a registration context."""
         from pyspark.errors.exceptions.base import PySparkRuntimeError
 
         with pytest.raises(PySparkRuntimeError):
@@ -293,6 +344,7 @@ class TestOutsideContext:
                 pass
 
     def test_table_outside_context_raises(self):
+        """Should raise PySparkRuntimeError when table is used without a context."""
         from pyspark.errors.exceptions.base import PySparkRuntimeError
 
         with pytest.raises(PySparkRuntimeError):
@@ -302,6 +354,7 @@ class TestOutsideContext:
                 pass
 
     def test_create_streaming_table_outside_context_raises(self):
+        """Should raise PySparkRuntimeError for create_streaming_table without context."""
         from pyspark.errors.exceptions.base import PySparkRuntimeError
 
         with pytest.raises(PySparkRuntimeError):
@@ -317,6 +370,7 @@ class TestTablePipelineConfig:
     """Tests for the pipeline configuration dataclass."""
 
     def test_default_values(self):
+        """Should populate all fields with sensible defaults for a given table name."""
         from pydantic.dataclasses import dataclass
 
         @dataclass(frozen=True)
@@ -340,6 +394,7 @@ class TestTablePipelineConfig:
         assert config.timestamp_column == "timestamp"
 
     def test_custom_values(self):
+        """Should accept and store custom overrides for every field."""
         from pydantic.dataclasses import dataclass
 
         @dataclass(frozen=True)
@@ -365,6 +420,7 @@ class TestTablePipelineConfig:
         assert config.timestamp_column == "updated_at"
 
     def test_config_is_frozen(self):
+        """Should reject attribute mutation since the dataclass is frozen."""
         from pydantic.dataclasses import dataclass
 
         @dataclass(frozen=True)
@@ -386,6 +442,7 @@ class TestPipelineNameGeneration:
     """Tests that the pipeline naming convention produces correct table paths."""
 
     def test_bronze_table_name(self):
+        """Should generate a fully-qualified bronze table name with '_raw' suffix."""
         catalog = "test_catalog"
         schema = "test_bronze_schema"
         table_name = "fake_orders"
@@ -393,6 +450,7 @@ class TestPipelineNameGeneration:
         assert f"{catalog}.{schema}.{table_name}_raw" == expected
 
     def test_silver_table_name(self):
+        """Should generate a fully-qualified silver table name with '_staging' suffix."""
         catalog = "test_catalog"
         schema = "test_silver_schema"
         table_name = "fake_orders"
@@ -400,6 +458,7 @@ class TestPipelineNameGeneration:
         assert f"{catalog}.{schema}.{table_name}_staging" == expected
 
     def test_gold_table_name(self):
+        """Should generate a fully-qualified gold table name with '_clean' suffix."""
         catalog = "test_catalog"
         schema = "test_gold_schema"
         table_name = "fake_orders"
@@ -407,6 +466,7 @@ class TestPipelineNameGeneration:
         assert f"{catalog}.{schema}.{table_name}_clean" == expected
 
     def test_simple_table_name(self):
+        """Should generate a fully-qualified simple table name with '_simple_table' suffix."""
         catalog = "test_catalog"
         schema = "test_bronze_schema"
         table_name = "fake_users"
@@ -414,6 +474,7 @@ class TestPipelineNameGeneration:
         assert f"{catalog}.{schema}.{table_name}_simple_table" == expected
 
     def test_aggregate_gold_table_name(self):
+        """Should generate the correct aggregate gold summary table path."""
         catalog = "test_catalog"
         schema = "test_gold_schema"
         agg_name = "summary_statistics_gold"
@@ -421,6 +482,7 @@ class TestPipelineNameGeneration:
         assert f"{catalog}.{schema}.{agg_name}" == expected
 
     def test_gold_table_paths_list(self):
+        """Should build a list of gold table paths for all configured tables."""
         tables = ["fake_orders", "fake_products", "fake_users"]
         catalog = "test_catalog"
         schema = "test_gold_schema"

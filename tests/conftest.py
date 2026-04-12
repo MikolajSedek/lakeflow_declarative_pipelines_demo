@@ -1,3 +1,5 @@
+"""Shared pytest fixtures for the Lakeflow pipeline test suite."""
+
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType

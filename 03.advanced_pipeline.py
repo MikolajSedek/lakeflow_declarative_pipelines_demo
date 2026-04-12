@@ -1,3 +1,5 @@
+"""Advanced Lakeflow Declarative Pipeline with bronze/silver/gold medallion architecture."""
+
 from functools import reduce
 
 import pyspark.sql.functions as F
@@ -23,10 +25,16 @@ BRONZE_SCHEMA = "test_bronze_schema"
 SILVER_SCHEMA = "test_silver_schema"
 GOLD_SCHEMA = "test_gold_schema"
 
-TABLES_NAMES_LIST = ["fake_orders", "fake_products", "fake_users"]
+TABLES_NAMES: tuple[str, ...] = ("fake_orders", "fake_products", "fake_users")
 
-PRIME_KEY_COLUMNS = ("id",)
+PRIME_KEY_COLUMNS: tuple[str, ...] = ("id",)
 TIMESTAMP_COLUMN = "timestamp"
+
+# table name suffixes – extracted as constants to avoid inline magic strings
+# (Palantir PySpark style guide: avoid literal strings in logic)
+BRONZE_TABLE_SUFFIX = "_raw"
+SILVER_TABLE_SUFFIX = "_staging"
+GOLD_TABLE_SUFFIX = "_clean"
 
 
 # configuration object
@@ -34,9 +42,7 @@ TIMESTAMP_COLUMN = "timestamp"
 
 @dataclass(frozen=True)
 class TablePipelineConfig:
-    """
-    configuration for a single table pipeline
-    """
+    """Configuration for a single table pipeline."""
 
     table_name: str
     root_source_path: str = SOURCE_PATH_ROOT
@@ -64,7 +70,6 @@ def create_raw_bronze_table(
 
     @dp.table(name=bronze_table_name)
     def raw_bronze_table():
-        # raw streaming source
         raw_source = (
             spark.readStream.format("cloudFiles")
             .option("cloudFiles.format", source_format)
@@ -72,7 +77,6 @@ def create_raw_bronze_table(
             .option("inferSchema", infer_schema)
             .load(table_path)
         )
-        # run basic transforms
         transformed_source = raw_source.transform(extract_file_name_from_metadata).transform(
             add_load_timestamp
         )
@@ -107,10 +111,7 @@ def create_gold_merged_table(
     Note: dp.create_auto_cdc_flow is a Databricks-only API and is not available
     in open-source Apache Spark's pyspark.pipelines module.
     """
-
-    # create target streaming table
     dp.create_streaming_table(name=gold_table_name, comment="gold table")
-    # merge into target using key cols and timestamp (Databricks-only)
     dp.create_auto_cdc_flow(
         source=silver_table_name,
         target=gold_table_name,
@@ -120,86 +121,71 @@ def create_gold_merged_table(
 
 
 def run_single_pipeline(
-    tb_config: TablePipelineConfig,
+    table_config: TablePipelineConfig,
 ) -> None:
     """
-    Create a single table pipeline by:
-    1. creating a bronze streaming table
-    2. creating a silver streaming staging table
-    3. merging staging into gold table using CDC
+    Create a single table pipeline (bronze → silver → gold).
     """
+    source_table_path = f"{table_config.root_source_path}/{table_config.table_name}"
+    bronze_prefix = f"{table_config.target_catalog}.{table_config.bronze_schema}"
+    silver_prefix = f"{table_config.target_catalog}.{table_config.silver_schema}"
+    gold_prefix = f"{table_config.target_catalog}.{table_config.gold_schema}"
 
-    # create name paths and prefixes
-    source_table_path = f"{tb_config.root_source_path}/{tb_config.table_name}"
-    bronze_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.bronze_schema}"
-    silver_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.silver_schema}"
-    gold_schema_name_prefix = f"{tb_config.target_catalog}.{tb_config.gold_schema}"
+    bronze_table_name = f"{bronze_prefix}.{table_config.table_name}{BRONZE_TABLE_SUFFIX}"
+    silver_table_name = f"{silver_prefix}.{table_config.table_name}{SILVER_TABLE_SUFFIX}"
+    gold_table_name = f"{gold_prefix}.{table_config.table_name}{GOLD_TABLE_SUFFIX}"
 
-    # create names for tables in schemas and catalogs
-    bronze_table_name = f"{bronze_schema_name_prefix}.{tb_config.table_name}_raw"
-    silver_table_name = f"{silver_schema_name_prefix}.{tb_config.table_name}_staging"
-    gold_table_name = f"{gold_schema_name_prefix}.{tb_config.table_name}_clean"
-
-    # 1. create a bronze streaming table
     create_raw_bronze_table(bronze_table_name, source_table_path)
-
-    # 2. create silver streaming staging table
     create_silver_staging_table(silver_table_name, bronze_table_name)
-
-    # 3. stream merge staging into gold using keys and timestamp
     create_gold_merged_table(
         silver_table_name=silver_table_name,
         gold_table_name=gold_table_name,
-        prime_key_columns=tb_config.prime_key_columns,
-        timestamp_column=tb_config.timestamp_column,
+        prime_key_columns=table_config.prime_key_columns,
+        timestamp_column=table_config.timestamp_column,
     )
 
 
-def run_all_pipelines(table_names_list: list = TABLES_NAMES_LIST) -> None:
+def run_all_pipelines(table_names: tuple[str, ...] = TABLES_NAMES) -> None:
     """
     Runs all pipelines for a given list of tables.
     """
-    for table_name in table_names_list:
-        # prepare table config
-        tb_config = TablePipelineConfig(table_name=table_name)
-        # run with the config
-        run_single_pipeline(tb_config)
+    for table_name in table_names:
+        table_config = TablePipelineConfig(table_name=table_name)
+        run_single_pipeline(table_config)
 
 
 def aggregate_gold_tables(
-    tables_names_list: list[str] = TABLES_NAMES_LIST,
+    tables_names: tuple[str, ...] = TABLES_NAMES,
     target_catalog: str = TARGET_CATALOG,
     gold_schema: str = GOLD_SCHEMA,
     aggregate_table_name: str = "summary_statistics_gold",
-    gold_table_postfix: str = "_clean",
+    gold_table_postfix: str = GOLD_TABLE_SUFFIX,
     id_column: str = "id",
 ) -> None:
     """
     Aggregates gold tables stats into a single materialized view table.
     """
-    # we need table paths
+    if not tables_names:
+        return
+
     tables_paths = [
         f"{target_catalog}.{gold_schema}.{table_name}{gold_table_postfix}"
-        for table_name in tables_names_list
+        for table_name in tables_names
     ]
-    # and a gold table name
     gold_table_name = f"{target_catalog}.{gold_schema}.{aggregate_table_name}"
 
-    # so we can have a summary materialized view
     @dp.materialized_view(name=gold_table_name)
     def summary_statistics_table():
-        # create a list of frames
         frames_list = [
             spark.read.table(table_path)
             .agg(
-                F.count(F.lit(1)).alias("table_rows"),
-                F.count(id_column).alias("unique_ids"),
+                F.count("*").alias("table_rows"),
+                F.countDistinct(id_column).alias("unique_ids"),
             )
             .withColumn("table_name", F.lit(table_path))
             for table_path in tables_paths
         ]
-        # reduce to a single frame using union
-        reduced_frame = reduce(DataFrame.unionAll, frames_list)
+        reduced_frame = reduce(DataFrame.union, frames_list)
         return reduced_frame
 
 

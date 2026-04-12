@@ -8,6 +8,8 @@ jobs:
   lint:
     name: Lint (pre-commit)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -17,9 +19,11 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
-  test:
-    name: Unit tests (pytest)
+  test-pure:
+    name: Unit tests – pure Python (no SparkSession)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -30,5 +34,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pytest
 
-      - name: Run tests
-        run: pytest tests/ -v
+      - name: Run pure-Python tests
+        run: pytest tests/ -m "not spark" -v
+
+  test-spark:
+    name: Unit tests – PySpark (SparkSession required)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run PySpark tests
+        run: pytest tests/ -m spark -v

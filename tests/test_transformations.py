@@ -3,6 +3,8 @@ Unit tests for pure PySpark transformation functions defined in transformations.
 """
 
 import pytest
+
+pytestmark = pytest.mark.spark
 from pyspark.sql import SparkSession
 from pyspark.sql.types import TimestampType
 

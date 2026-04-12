@@ -4,94 +4,26 @@
 
 # COMMAND ----------
 
-import random
-from typing import NamedTuple
+from pyspark.sql import DataFrame
 
-import pendulum
-from logzero import logger 
-from mimesis import Person, Address, Generic, Finance
-from pyspark.sql import Row, DataFrame
-
+from data_generation import FrameConfig, generate_list_of_rows
 
 NUM_USERS = 2000
 NUM_PRODUCTS = 1500
 NUM_ORDERS = 3000
 LOCALE = "en"
-WRITE_PATH = f"/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
-
-def generate_list_of_rows(
-    type: str, # could be users, orders, products
-    num_rows: int,
-    locale: str = LOCALE,
-) -> list[Row]:
-    """
-    Generatest a list of rows for a given type
-    """
-    assert type in ["users", "products", "orders"], f"Invalid type: {type}"
-
-    person = Person(locale)
-    address = Address(locale)
-    generic = Generic(locale)
-    finance = Finance(locale)
-    
-    # return users rows
-    if type == "users":
-        logger.info(f"Generating {num_rows} users rows")
-        return [
-        # inconsistent naming of columns is intentional :)
-        Row(
-            id=i,
-            Person_Name=person.name(),
-            person_surname=person.surname(),
-            Personal_Address=address.address(),
-            city=address.city(),
-            Country=address.country(),
-            personal_email=person.email(),
-            timestamp=pendulum.now().isoformat(),
-            nonsense_column=random.randint(0, 1000),
-        )
-        for i in range(1, num_rows + 1)
-    ]
-    # return products rows
-    if type == "products":
-        logger.info(f"Generating {num_rows} products rows")
-        return [
-        Row(
-            id=i,
-            product_name=generic.text.word(),
-            price=round(random.uniform(10, 500), 2),
-            description=generic.text.text(quantity=1),
-            stock=random.randint(0, 1000),
-            company_name=finance.company(),
-            timestamp=pendulum.now().isoformat(),
-            nonsense_column=random.randint(0, 1000),
-
-        )
-        for i in range(1, num_rows + 1)
-    ]
-    # return orders rows
-    logger.info(f"Generating {num_rows} orders rows")   
-    return [
-        Row(
-            id=i,
-            productid=random.randint(1, num_rows + 1),
-            price=round(random.uniform(10, 500), 2),
-            product_name=generic.text.word(),
-            timestamp=pendulum.now().isoformat(),
-            nonsense_column=random.randint(0, 1000),
-        )
-        for i in range(1, num_rows + 1)
-    ]
 
 # Users Data
 
+
 def generate_users_frame(
     num_users: int = NUM_USERS,
-    locale: str = LOCALE
+    locale: str = LOCALE,
 ) -> DataFrame:
     """
-    Generates fake users data. Columns naming is intentionally incosistent :).
+    Generates fake users data. Column naming is intentionally inconsistent :).
     """
     users_rows = generate_list_of_rows("users", num_users, locale)
     users_df = spark.createDataFrame(users_rows)
@@ -101,7 +33,7 @@ def generate_users_frame(
 # Products Data
 def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCALE) -> DataFrame:
     """
-    Generates fake products data. Columns naming is intentionally incosistent.
+    Generates fake products data. Column naming is intentionally inconsistent.
     """
     products_rows = generate_list_of_rows("products", num_products, locale)
     products_df = spark.createDataFrame(products_rows)
@@ -109,28 +41,21 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCAL
 
 
 # Orders Data
-def generate_orders_data(
-    num_orders: int = NUM_ORDERS, num_products: int = NUM_PRODUCTS, locale: str = LOCALE
-) -> DataFrame:
+def generate_orders_data(num_orders: int = NUM_ORDERS, locale: str = LOCALE) -> DataFrame:
     """
-    Generates fake orders data. 
+    Generates fake orders data.
     """
     orders_rows = generate_list_of_rows("orders", num_orders, locale)
     orders_df = spark.createDataFrame(orders_rows)
     return orders_df
-    
-class FrameConfig(NamedTuple):
-    """
-    frame configuration object
-    """
-    name: str
-    df: DataFrame
+
 
 def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
     """
     Writes a DataFrame to a path.
     """
     config.df.write.mode("append").csv(f"{root_path}/{config.name}", header=True)
+
 
 # COMMAND ----------
 
@@ -167,4 +92,3 @@ if __name__ == "__main__":
         write_frame_config_to_path(WRITE_PATH, config)
 
 # COMMAND ----------
-

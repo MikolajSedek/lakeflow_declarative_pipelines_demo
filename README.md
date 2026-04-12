@@ -77,8 +77,8 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 │   ├── conftest.py                    # Shared fixtures (SparkSession, sample DataFrames)
 │   ├── test_data_generation.py        # Tests for data generation (pure Python, no Spark)
 │   ├── test_parallel_writes.py        # Tests for concurrent DataFrame writes (Spark)
-│   ├── test_pipelines.py              # Tests for pipeline decorator registration (Spark)
-│   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline structure (Spark)
+│   ├── test_pipelines.py              # Tests for pipeline decorator registration (no Spark)
+│   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline structure (no Spark)
 │   └── test_transformations.py        # Tests for transformation functions (Spark)
 ├── pyproject.toml              # Project metadata, tool configuration
 ├── requirements.txt            # Runtime + test dependencies
@@ -199,7 +199,7 @@ Tests are split into two categories using `pytest` markers:
 | Marker      | Description                              | Requires Spark? |
 |-------------|------------------------------------------|-----------------|
 | *(none)*    | Pure Python tests (data generation)      | No              |
-| `spark`     | PySpark tests (transformations, writes, pipelines) | Yes (local)     |
+| `spark`     | PySpark tests (transformations, parallel writes)   | Yes (local)     |
 
 ### Running Tests Locally
 
@@ -222,7 +222,7 @@ pytest tests/ -m spark -v
 | Test Module                    | Tests | What's Covered                                                  |
 |--------------------------------|-------|-----------------------------------------------------------------|
 | `test_data_generation`         | 16    | Row counts, field names, value ranges, input validation, FrameConfig |
-| `test_transformations`         | 22    | Column addition/removal, lowercasing, hashing, edge cases, validation |
+| `test_transformations`         | 24    | Column addition/removal, lowercasing, hashing, edge cases, defaults, validation |
 | `test_parallel_writes`         | 13    | Concurrent writes, append semantics, error propagation, edge cases |
 | `test_pipelines`               | 31    | Decorator registration, flow creation, name inference, config freezing |
 | `test_scd_genie_code_pipeline` | 24    | SCD Type 2 pipeline constants, streaming table registration, CDC flow invocation |

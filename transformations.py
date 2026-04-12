@@ -109,8 +109,7 @@ def anonymize_sensitive_data(
     """
     if sha_hash_length not in _VALID_SHA2_LENGTHS:
         raise ValueError(
-            f"sha_hash_length must be one of {sorted(_VALID_SHA2_LENGTHS)}, "
-            f"got {sha_hash_length}"
+            f"sha_hash_length must be one of {sorted(_VALID_SHA2_LENGTHS)}, got {sha_hash_length}"
         )
     if sensitive_cols is None:
         sensitive_cols = SENSITIVE_COLUMNS

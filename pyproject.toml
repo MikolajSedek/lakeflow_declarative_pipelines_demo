@@ -29,6 +29,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "spark: tests that require a live SparkSession (deselect with '-m not spark')",
+]
 
 [tool.ruff]
 line-length = 100

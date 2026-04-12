@@ -18,6 +18,8 @@ import pytest
 from loguru import logger
 from pyspark.sql import DataFrame, Row, SparkSession
 
+pytestmark = pytest.mark.spark
+
 # ---------------------------------------------------------------------------
 # Local copies of the production helpers (mirrors 01.create_fake_data.py)
 # ---------------------------------------------------------------------------

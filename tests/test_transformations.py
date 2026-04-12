@@ -14,6 +14,8 @@ from transformations import (
     remove_nonsense_columns,
 )
 
+pytestmark = pytest.mark.spark
+
 # ---------------------------------------------------------------------------
 # add_load_timestamp
 # ---------------------------------------------------------------------------

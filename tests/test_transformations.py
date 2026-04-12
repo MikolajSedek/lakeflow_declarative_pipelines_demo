@@ -3,8 +3,6 @@ Unit tests for pure PySpark transformation functions defined in transformations.
 """
 
 import pytest
-
-pytestmark = pytest.mark.spark
 from pyspark.sql import SparkSession
 from pyspark.sql.types import TimestampType
 
@@ -15,6 +13,8 @@ from transformations import (
     lower_all_column_names,
     remove_nonsense_columns,
 )
+
+pytestmark = pytest.mark.spark
 
 # ---------------------------------------------------------------------------
 # add_load_timestamp

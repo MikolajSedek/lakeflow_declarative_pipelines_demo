@@ -4,6 +4,7 @@
 
 # COMMAND ----------
 
+from mimesis.enums import Locale
 from pyspark.sql import DataFrame
 
 from data_generation import FrameConfig, generate_list_of_rows
@@ -11,7 +12,7 @@ from data_generation import FrameConfig, generate_list_of_rows
 NUM_USERS = 2000
 NUM_PRODUCTS = 1500
 NUM_ORDERS = 3000
-LOCALE = "en"
+LOCALE = Locale.EN
 WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
 
@@ -20,7 +21,7 @@ WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 
 def generate_users_frame(
     num_users: int = NUM_USERS,
-    locale: str = LOCALE,
+    locale: Locale = LOCALE,
 ) -> DataFrame:
     """
     Generates fake users data. Column naming is intentionally inconsistent :).
@@ -31,7 +32,7 @@ def generate_users_frame(
 
 
 # Products Data
-def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCALE) -> DataFrame:
+def generate_products_data(num_products: int = NUM_PRODUCTS, locale: Locale = LOCALE) -> DataFrame:
     """
     Generates fake products data. Column naming is intentionally inconsistent.
     """
@@ -41,7 +42,7 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: str = LOCAL
 
 
 # Orders Data
-def generate_orders_data(num_orders: int = NUM_ORDERS, locale: str = LOCALE) -> DataFrame:
+def generate_orders_data(num_orders: int = NUM_ORDERS, locale: Locale = LOCALE) -> DataFrame:
     """
     Generates fake orders data.
     """

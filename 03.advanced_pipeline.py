@@ -155,7 +155,7 @@ def run_single_pipeline(
     )
 
 
-def run_all_pipelines(table_names_list: list = TABLES_NAMES_LIST) -> None:
+def run_all_pipelines(table_names_list: list[str] = TABLES_NAMES_LIST) -> None:
     """
     Runs all pipelines for a given list of tables.
     """
@@ -177,6 +177,9 @@ def aggregate_gold_tables(
     """
     Aggregates gold tables stats into a single materialized view table.
     """
+    if not tables_names_list:
+        return
+
     # we need table paths
     tables_paths = [
         f"{target_catalog}.{gold_schema}.{table_name}{gold_table_postfix}"
@@ -192,14 +195,14 @@ def aggregate_gold_tables(
         frames_list = [
             spark.read.table(table_path)
             .agg(
-                F.count(F.lit(1)).alias("table_rows"),
-                F.count(id_column).alias("unique_ids"),
+                F.count("*").alias("table_rows"),
+                F.countDistinct(id_column).alias("unique_ids"),
             )
             .withColumn("table_name", F.lit(table_path))
             for table_path in tables_paths
         ]
         # reduce to a single frame using union
-        reduced_frame = reduce(DataFrame.unionAll, frames_list)
+        reduced_frame = reduce(DataFrame.union, frames_list)
         return reduced_frame
 
 

@@ -5,31 +5,33 @@ These functions have no SparkSession dependency and can be unit-tested without
 a running Spark cluster.
 """
 
+from __future__ import annotations
+
 import random
 from typing import NamedTuple
 
 import pendulum
 from loguru import logger
 from mimesis import Address, Finance, Generic, Person
+from mimesis.enums import Locale
 from pyspark.sql import DataFrame, Row
 
-LOCALE = "en"
+_VALID_ROW_TYPES = frozenset({"users", "products", "orders"})
 
-_VALID_ROW_TYPES = {"users", "products", "orders"}
+DEFAULT_LOCALE = Locale.EN
 
 
 def generate_list_of_rows(
     row_type: str,
     num_rows: int,
-    locale: str = LOCALE,
+    locale: Locale = DEFAULT_LOCALE,
 ) -> list[Row]:
-    """
-    Generates a list of rows for a given type (users, products, or orders).
+    """Generate a list of rows for a given type (users, products, or orders).
 
     Args:
         row_type: One of "users", "products", "orders".
         num_rows: Number of rows to generate.
-        locale: Mimesis locale string (default "en").
+        locale: Mimesis Locale enum value (default ``Locale.EN``).
 
     Returns:
         A list of PySpark Row objects.
@@ -49,7 +51,7 @@ def generate_list_of_rows(
 
     # return users rows
     if row_type == "users":
-        logger.info(f"Generating {num_rows} users rows")
+        logger.info("Generating {} users rows", num_rows)
         return [
             # inconsistent naming of columns is intentional :)
             Row(
@@ -68,7 +70,7 @@ def generate_list_of_rows(
 
     # return products rows
     if row_type == "products":
-        logger.info(f"Generating {num_rows} products rows")
+        logger.info("Generating {} products rows", num_rows)
         return [
             Row(
                 id=i,
@@ -84,7 +86,7 @@ def generate_list_of_rows(
         ]
 
     # return orders rows
-    logger.info(f"Generating {num_rows} orders rows")
+    logger.info("Generating {} orders rows", num_rows)
     return [
         Row(
             id=i,

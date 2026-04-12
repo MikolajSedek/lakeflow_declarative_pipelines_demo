@@ -119,21 +119,21 @@ def test_lower_all_column_names_row_count_unchanged(mixed_case_df) -> None:
 @pytest.mark.parametrize(
     "columns_to_drop,expected_remaining",
     [
-        (["nonsense_column"], {"id", "important"}),
-        (["id", "nonsense_column"], {"important"}),
-        (["nonexistent"], {"id", "nonsense_column", "important"}),
-        ([], {"id", "nonsense_column", "important"}),
+        (("nonsense_column",), {"id", "important"}),
+        (("id", "nonsense_column"), {"important"}),
+        (("nonexistent",), {"id", "nonsense_column", "important"}),
+        ((), {"id", "nonsense_column", "important"}),
     ],
 )
 def test_remove_nonsense_columns_correct_columns_remain(
-    nonsense_df, columns_to_drop: list, expected_remaining: set
+    nonsense_df, columns_to_drop: tuple, expected_remaining: set
 ) -> None:
     result = remove_nonsense_columns(nonsense_df, columns_to_drop=columns_to_drop)
     assert set(result.columns) == expected_remaining
 
 
 def test_remove_nonsense_columns_row_count_unchanged(nonsense_df) -> None:
-    result = remove_nonsense_columns(nonsense_df, columns_to_drop=["nonsense_column"])
+    result = remove_nonsense_columns(nonsense_df, columns_to_drop=("nonsense_column",))
     assert result.count() == nonsense_df.count()
 
 
@@ -145,7 +145,7 @@ def test_remove_nonsense_columns_row_count_unchanged(nonsense_df) -> None:
 @pytest.mark.parametrize("col_name", ["personal_email", "person_surname", "personal_address"])
 def test_anonymize_sensitive_column_is_hashed(sensitive_df, col_name: str) -> None:
     original = sensitive_df.first()[col_name]
-    result = anonymize_sensitive_data(sensitive_df, sensitive_cols=[col_name])
+    result = anonymize_sensitive_data(sensitive_df, sensitive_cols=(col_name,))
     assert result.first()[col_name] != original
 
 
@@ -160,18 +160,18 @@ def test_anonymize_hash_output_length(
     sensitive_df, hash_length: int, expected_hex_len: int
 ) -> None:
     result = anonymize_sensitive_data(
-        sensitive_df, sensitive_cols=["personal_email"], sha_hash_length=hash_length
+        sensitive_df, sensitive_cols=("personal_email",), sha_hash_length=hash_length
     )
     assert len(result.first()["personal_email"]) == expected_hex_len
 
 
 def test_anonymize_absent_column_is_ignored(simple_df) -> None:
-    result = anonymize_sensitive_data(simple_df, sensitive_cols=["personal_email"])
+    result = anonymize_sensitive_data(simple_df, sensitive_cols=("personal_email",))
     assert result.columns == simple_df.columns
 
 
 def test_anonymize_non_sensitive_columns_unchanged(sensitive_df) -> None:
-    result = anonymize_sensitive_data(sensitive_df, sensitive_cols=["personal_email"])
+    result = anonymize_sensitive_data(sensitive_df, sensitive_cols=("personal_email",))
     assert result.first()["id"] == 1
 
 
@@ -180,11 +180,11 @@ def test_anonymize_same_value_produces_same_hash(spark: SparkSession) -> None:
         [(1, "same@example.com"), (2, "same@example.com")],
         ["id", "personal_email"],
     )
-    result = anonymize_sensitive_data(df, sensitive_cols=["personal_email"])
+    result = anonymize_sensitive_data(df, sensitive_cols=("personal_email",))
     rows = result.orderBy("id").collect()
     assert rows[0]["personal_email"] == rows[1]["personal_email"]
 
 
 def test_anonymize_no_sensitive_columns_returns_frame_unchanged(simple_df) -> None:
-    result = anonymize_sensitive_data(simple_df, sensitive_cols=[])
+    result = anonymize_sensitive_data(simple_df, sensitive_cols=())
     assert result.first()["value"] == "a"

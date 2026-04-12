@@ -22,6 +22,7 @@ End-to-end demonstration of **Databricks Lakeflow Declarative Pipelines** (the s
   - [Running Tests Locally](#running-tests-locally)
 - [Code Quality & Linting](#code-quality--linting)
 - [CI / CD](#ci--cd)
+- [Agent Package Manager (APM)](#agent-package-manager-apm)
 - [Databricks Deployment](#databricks-deployment)
 - [Key API Reference](#key-api-reference)
 - [References & Further Reading](#references--further-reading)
@@ -228,6 +229,43 @@ GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push and pu
 | `test-spark` | PySpark tests (`-m spark`)                 | 15 min  |
 
 All jobs use pip caching for fast dependency installation.
+
+---
+
+## Agent Package Manager (APM)
+
+This project uses [APM](https://github.com/microsoft/apm) — an open-source dependency manager for AI agents — to declare and install agent skills, prompts, and plugins reproducibly alongside the code.
+
+The `apm.yml` manifest at the root of the repository declares all agentic dependencies:
+
+```yaml
+name: lakeflow-declarative-pipelines-demo
+version: 0.1.0
+dependencies:
+  apm:
+    - github/awesome-copilot/skills/pytest-coverage
+```
+
+### Installed Skills
+
+| Skill | Description |
+|-------|-------------|
+| [`pytest-coverage`](https://github.com/github/awesome-copilot/blob/main/skills/pytest-coverage/SKILL.md) | Run pytest with coverage, identify uncovered lines, and iteratively improve coverage to 100% |
+| [`pyspark-style-guide`](.github/copilot/skills/pyspark-style-guide/SKILL.md) | Write idiomatic, performant PySpark code following the [Palantir PySpark Style Guide](https://github.com/palantir/pyspark-style-guide) |
+
+### Setup
+
+Install APM and configure your AI agent with the project's agentic dependencies:
+
+```bash
+# Install APM (Linux / macOS)
+curl -sSL https://aka.ms/apm-unix | sh
+
+# Install all declared agent dependencies
+apm install
+```
+
+After running `apm install`, your AI coding agent (GitHub Copilot, Claude Code, Cursor, etc.) will automatically have the `pytest-coverage` skill available, enabling it to run coverage analysis and improve test coverage.
 
 ---
 

@@ -1,8 +1,23 @@
-"""SCD Type 2 Pipeline for tracking product changes in orders.
+"""SCD Type 2 Pipeline for tracking product and customer changes in orders.
 
 This pipeline implements Slowly Changing Dimension Type 2 for the fake_orders table,
-tracking historical changes in the product_id column while maintaining SCD Type 1
-semantics for all other columns.
+tracking historical changes in the ``productid`` and ``userid`` columns while
+maintaining SCD Type 1 semantics for all other columns (e.g. ``price``,
+``product_name``).
+
+Business context
+----------------
+In a real e-commerce system, an order's product assignment or owning customer
+may be corrected after initial entry (product substitution, account merges,
+fraud re-attribution).  Tracking these changes with SCD Type 2 preserves the
+full audit trail:
+
+*  **Who** placed the order at each point in time (``userid``).
+*  **What** product the order referenced (``productid``).
+*  **When** each version of the record was valid (``__START_AT`` / ``__END_AT``).
+
+Downstream gold tables can perform point-in-time joins to reconstruct the exact
+state of an order at any historical moment.
 """
 
 from pyspark import pipelines as dp
@@ -17,17 +32,17 @@ TARGET_TABLE_NAME = "fake_orders_scd2"
 KEY_COLUMN = "id"
 SEQUENCE_COLUMN = "timestamp"
 
-# Column to track history for (SCD Type 2)
-HISTORY_TRACKED_COLUMNS = ["productid"]
+# Columns to track history for (SCD Type 2)
+HISTORY_TRACKED_COLUMNS = ["productid", "userid"]
 
 
 def create_orders_scd2_table() -> None:
     """
-    Creates an SCD Type 2 table for order data tracking product changes.
+    Creates an SCD Type 2 table for order data tracking product and customer changes.
 
     - Key: id
     - Sequence by: timestamp
-    - History tracking: productid only (other columns use SCD Type 1)
+    - History tracking: productid and userid (other columns use SCD Type 1)
     - Output includes __START_AT and __END_AT columns for temporal tracking
     """
     target_table_name = f"{TARGET_CATALOG}.{GOLD_SCHEMA}.{TARGET_TABLE_NAME}"
@@ -35,7 +50,8 @@ def create_orders_scd2_table() -> None:
     # Step 1: Create the target streaming table for SCD Type 2
     # This will automatically include __START_AT and __END_AT columns
     dp.create_streaming_table(
-        name=target_table_name, comment="SCD Type 2 table tracking product changes in orders"
+        name=target_table_name,
+        comment="SCD Type 2 table tracking product and customer changes in orders",
     )
 
     # Step 2: Define the Auto CDC flow with SCD Type 2 and selective history tracking

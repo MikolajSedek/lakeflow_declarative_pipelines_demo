@@ -101,10 +101,12 @@ Generates synthetic datasets using the [mimesis](https://mimesis.name/) library 
 |----------------|---------------------------------------------------------|----------|
 | `fake_users`   | id, Person\_Name, person\_surname, personal\_email, … | CSV      |
 | `fake_products`| id, product\_name, price, stock, company\_name, …     | CSV      |
-| `fake_orders`  | id, productid, price, product\_name, …                | CSV      |
+| `fake_orders`  | id, userid, productid, price, product\_name, …        | CSV      |
 
 **Key design decisions:**
 - Column naming is **intentionally inconsistent** across all three datasets (e.g. `Person_Name` vs `person_surname`, `productid` vs `product_name`) to simulate real-world messy sources and demonstrate downstream normalization in the Silver layer.
+- **Joinable foreign keys:** Orders reference valid `userid` (→ `fake_users.id`) and `productid` (→ `fake_products.id`) values, enabling realistic multi-table joins in the Gold layer.
+- **Varied timestamps:** Order timestamps are spread over a 30-day window so that SCD Type 2 tracking and temporal analysis produce meaningful results.
 - Each dataset includes a `nonsense_column` to demonstrate column pruning.
 - Writes use `ThreadPoolExecutor` for concurrent I/O – Spark write actions release the GIL, so threads provide a real speedup over sequential writes.
 
@@ -124,12 +126,15 @@ A minimal Lakeflow Declarative Pipeline that reads CSV sources and creates **mat
 
 The full **Bronze → Silver → Gold** medallion pipeline with:
 
-| Stage  | Function                       | What It Does                                                              |
-|--------|--------------------------------|---------------------------------------------------------------------------|
-| Bronze | `create_raw_bronze_table`      | Reads streaming CSV via Auto Loader (`cloudFiles`), adds file metadata and load timestamp |
-| Silver | `create_silver_staging_table`  | Drops nonsense columns, lowercases all column names, SHA-2 hashes sensitive data |
-| Gold   | `create_gold_merged_table`     | Creates a streaming table and applies CDC merge via `dp.create_auto_cdc_flow` |
-| Agg    | `aggregate_gold_tables`        | Unions row/distinct-ID counts across all gold tables into a summary materialized view |
+| Stage  | Function                            | What It Does                                                              |
+|--------|-------------------------------------|---------------------------------------------------------------------------|
+| Bronze | `create_raw_bronze_table`           | Reads streaming CSV via Auto Loader (`cloudFiles`), adds file metadata and load timestamp |
+| Silver | `create_silver_staging_table`       | Drops nonsense columns, lowercases all column names, SHA-2 hashes sensitive data |
+| Gold   | `create_gold_merged_table`          | Creates a streaming table and applies CDC merge via `dp.create_auto_cdc_flow` |
+| Agg    | `aggregate_gold_tables`             | Unions row/distinct-ID counts across all gold tables into a summary materialized view |
+| KPI    | `create_gold_revenue_per_product`   | Joins orders with products to compute revenue, order count, and avg order value per product |
+| KPI    | `create_gold_customer_order_summary`| Joins orders with users to compute total spend, order count, and avg order value per customer |
+| KPI    | `create_gold_orders_enriched`       | Three-way join (orders → users → products) producing a wide fact table for BI dashboards |
 
 **Configuration** is centralized in the `TablePipelineConfig` frozen dataclass (Pydantic), making it easy to override catalogs, schemas, and key columns per environment.
 
@@ -145,17 +150,19 @@ A specialized pipeline implementing **Slowly Changing Dimension Type 2** (SCD Ty
 | **Target**               | `test_catalog.test_gold_schema.fake_orders_scd2`              |
 | **Primary Key**          | `id`                                                          |
 | **Sequence Column**      | `timestamp`                                                   |
-| **History Tracking**     | `productid` only (other columns use SCD Type 1 semantics)     |
+| **History Tracking**     | `productid`, `userid` (other columns use SCD Type 1 semantics)|
 | **Output Columns**       | Original columns + `__START_AT` + `__END_AT` (temporal validity) |
 
 **Key capabilities:**
-- **Selective history tracking:** Only tracks changes to the `productid` column using `track_history_column_list`. Changes to other columns (like `price` or `product_name`) update the current row without creating history.
+- **Selective history tracking:** Tracks changes to `productid` and `userid` columns using `track_history_column_list`. Changes to other columns (like `price` or `product_name`) update the current row without creating history.
+- **Joinable foreign keys:** With proper `userid` → users and `productid` → products references, SCD2 history records can be joined to dimension tables at any point in time.
 - **Temporal validity:** The target table automatically includes `__START_AT` and `__END_AT` columns that mark when each version of a record was valid.
 - **Point-in-time queries:** Query historical state at any point in time or join facts to the dimension version that was active during a transaction.
-- **Audit trail:** Maintains complete history of product changes for compliance and analysis.
+- **Audit trail:** Maintains complete history of product and customer changes for compliance and analysis.
 
 **Use cases:**
 - Track product reassignments in order history
+- Track customer reassignments (account merges, fraud re-attribution)
 - Maintain customer address history for compliance
 - Audit dimension changes over time
 - Enable temporal joins between facts and dimensions
@@ -168,7 +175,7 @@ A specialized pipeline implementing **Slowly Changing Dimension Type 2** (SCD Ty
 
 Pure-Python module with **no SparkSession dependency**.  Contains:
 
-- **`generate_list_of_rows(row_type, num_rows, locale)`** – Generates a list of PySpark `Row` objects for `"users"`, `"products"`, or `"orders"`.  Includes input validation for both `row_type` and `num_rows`.
+- **`generate_list_of_rows(row_type, num_rows, locale, *, num_users, num_products)`** – Generates a list of PySpark `Row` objects for `"users"`, `"products"`, or `"orders"`.  Includes input validation for both `row_type` and `num_rows`.  For orders, optional `num_users` and `num_products` keyword arguments constrain foreign key columns (`userid`, `productid`) to valid ID ranges, ensuring joins produce non-empty results.
 - **`FrameConfig`** – A `NamedTuple` pairing a table name with its DataFrame.
 
 Design notes:
@@ -222,13 +229,13 @@ pytest tests/ -m spark -v
 
 | Test Module                    | Tests | What's Covered                                                  |
 |--------------------------------|-------|-----------------------------------------------------------------|
-| `test_data_generation`         | 16    | Row counts, field names, value ranges, input validation, FrameConfig |
+| `test_data_generation`         | 21    | Row counts, field names, value ranges, input validation, FrameConfig, foreign key ranges |
 | `test_transformations`         | 24    | Column addition/removal, lowercasing, hashing, edge cases, defaults, validation |
 | `test_parallel_writes`         | 13    | Concurrent writes, append semantics, error propagation, edge cases |
 | `test_pipelines`               | 31    | Decorator registration, flow creation, name inference, config freezing |
 | `test_scd_genie_code_pipeline` | 24    | SCD Type 2 pipeline constants, streaming table registration, CDC flow invocation |
 | `test_simple_pipeline`         | 8     | `create_simple_materialized_view` registration, name generation, `create_tables` |
-| `test_advanced_pipeline`       | 22    | Bronze/silver/gold table registration, CDC invocation, `TablePipelineConfig`, aggregation |
+| `test_advanced_pipeline`       | 40    | Bronze/silver/gold table registration, CDC invocation, `TablePipelineConfig`, aggregation, KPI tables |
 
 The test suite uses a **session-scoped** local `SparkSession` (`local[1]`, UI disabled, 1 shuffle partition) to minimize JVM startup overhead.
 
@@ -240,6 +247,7 @@ The project enforces strict code quality through a comprehensive pre-commit conf
 
 | Tool          | Purpose                                    | Scope                        |
 |---------------|--------------------------------------------|------------------------------|
+| **Black**     | Uncompromising Python code formatting       | All Python files             |
 | **Ruff**      | Linting (E/F/W/I/B/S/UP/C4/SIM/T20/RUF/PT/PERF) + formatting | All Python files |
 | **mypy**      | Static type checking                       | `transformations.py`, `data_generation.py` |
 | **Bandit**    | Security linting                           | Production modules           |

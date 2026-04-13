@@ -79,8 +79,8 @@ def test_pipeline_sequence_column() -> None:
 
 
 def test_pipeline_history_tracked_columns() -> None:
-    """Should track history only for the 'productid' column."""
-    assert _PIPELINE.HISTORY_TRACKED_COLUMNS == ["productid"]
+    """Should track history for both 'productid' and 'userid' columns."""
+    assert _PIPELINE.HISTORY_TRACKED_COLUMNS == ["productid", "userid"]
 
 
 # ---------------------------------------------------------------------------
@@ -206,10 +206,10 @@ def test_cdc_flow_stored_as_scd_type_2(registry, mock_cdc) -> None:
 
 
 def test_cdc_flow_tracks_productid_history(registry, mock_cdc) -> None:
-    """Should limit history tracking to the 'productid' column."""
+    """Should track history for 'productid' and 'userid' columns."""
     _PIPELINE.create_orders_scd2_table()
 
-    assert mock_cdc.call_args.kwargs["track_history_column_list"] == ["productid"]
+    assert mock_cdc.call_args.kwargs["track_history_column_list"] == ["productid", "userid"]
 
 
 def test_cdc_flow_ignores_null_updates(registry, mock_cdc) -> None:

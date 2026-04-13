@@ -147,6 +147,14 @@ def test_remove_nonsense_columns_correct_columns_remain(
     assert set(result.columns) == expected_remaining
 
 
+def test_remove_nonsense_columns_default_drops_nonsense_column(nonsense_df) -> None:
+    """Should use NONSENSE_COLUMNS default when columns_to_drop is None."""
+    result = remove_nonsense_columns(nonsense_df)
+    assert "nonsense_column" not in result.columns
+    assert "id" in result.columns
+    assert "important" in result.columns
+
+
 def test_remove_nonsense_columns_row_count_unchanged(nonsense_df) -> None:
     """Should not alter the row count after dropping columns."""
     result = remove_nonsense_columns(nonsense_df, columns_to_drop=("nonsense_column",))
@@ -210,6 +218,19 @@ def test_anonymize_no_sensitive_columns_returns_frame_unchanged(simple_df) -> No
     """Should return the DataFrame unmodified when the sensitive list is empty."""
     result = anonymize_sensitive_data(simple_df, sensitive_cols=())
     assert result.first()["value"] == "a"
+
+
+def test_anonymize_default_sensitive_cols_are_hashed(sensitive_df) -> None:
+    """Should use SENSITIVE_COLUMNS default when sensitive_cols is None."""
+    result = anonymize_sensitive_data(sensitive_df)
+    original = sensitive_df.first()
+    hashed = result.first()
+    # All three default sensitive columns should be hashed
+    assert hashed["personal_email"] != original["personal_email"]
+    assert hashed["person_surname"] != original["person_surname"]
+    assert hashed["personal_address"] != original["personal_address"]
+    # Non-sensitive column should be unchanged
+    assert hashed["id"] == original["id"]
 
 
 @pytest.mark.parametrize("invalid_length", [1, 128, 255, 513, -1])

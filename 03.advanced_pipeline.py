@@ -68,7 +68,13 @@ def create_raw_bronze_table(
     Creates a bronze streaming table from a given source with basic transforms.
     """
 
-    @dp.table(name=bronze_table_name)
+    @dp.table(
+        name=bronze_table_name,
+        comment=(
+            f"Bronze streaming table: raw {source_format.upper()} file ingestion"
+            " with load timestamp and source file metadata"
+        ),
+    )
     def raw_bronze_table():
         raw_source = (
             spark.readStream.format("cloudFiles")
@@ -88,7 +94,13 @@ def create_silver_staging_table(silver_table_name: str, bronze_table_path: str) 
     Creates a silver streaming staging table from a bronze table.
     """
 
-    @dp.table(name=silver_table_name)
+    @dp.table(
+        name=silver_table_name,
+        comment=(
+            "Silver streaming table: cleaned, column-lowercased,"
+            " and anonymized data from the bronze layer"
+        ),
+    )
     def silver_staging_table():
         bronze_streaming_frame = spark.readStream.table(bronze_table_path)
         silver_table = (
@@ -111,7 +123,13 @@ def create_gold_merged_table(
     Note: dp.create_auto_cdc_flow is a Databricks-only API and is not available
     in open-source Apache Spark's pyspark.pipelines module.
     """
-    dp.create_streaming_table(name=gold_table_name, comment="gold table")
+    dp.create_streaming_table(
+        name=gold_table_name,
+        comment=(
+            f"Gold streaming table: CDC-merged records keyed by"
+            f" {', '.join(prime_key_columns)}, sequenced by {timestamp_column}"
+        ),
+    )
     dp.create_auto_cdc_flow(
         source=silver_table_name,
         target=gold_table_name,
@@ -174,7 +192,13 @@ def aggregate_gold_tables(
     ]
     gold_table_name = f"{target_catalog}.{gold_schema}.{aggregate_table_name}"
 
-    @dp.materialized_view(name=gold_table_name)
+    @dp.materialized_view(
+        name=gold_table_name,
+        comment=(
+            "Gold summary statistics: row counts and unique ID counts"
+            " aggregated across all gold tables"
+        ),
+    )
     def summary_statistics_table():
         frames_list = [
             spark.read.table(table_path)

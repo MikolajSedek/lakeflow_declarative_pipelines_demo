@@ -75,6 +75,23 @@ def test_create_simple_mv_custom_catalog_and_schema(registry) -> None:
     assert mv.name == "prod_catalog.prod_schema.fake_orders_simple_table"
 
 
+def test_create_simple_mv_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the materialized view."""
+    _SIMPLE_PIPELINE.create_simple_materialized_view("fake_orders")
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.comment is not None
+    assert len(mv.comment) > 0
+
+
+def test_create_simple_mv_comment_references_table_name(registry) -> None:
+    """Should include the table name in the materialized view comment."""
+    _SIMPLE_PIPELINE.create_simple_materialized_view("fake_products")
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert "fake_products" in mv.comment
+
+
 # ---------------------------------------------------------------------------
 # Tests: create_tables
 # ---------------------------------------------------------------------------

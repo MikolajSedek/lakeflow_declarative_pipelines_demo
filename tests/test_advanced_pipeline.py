@@ -93,6 +93,18 @@ def test_create_raw_bronze_table_registers_associated_flow(registry) -> None:
     assert len(flows) == 1
 
 
+def test_create_raw_bronze_table_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the bronze streaming table."""
+    _ADVANCED_PIPELINE.create_raw_bronze_table(
+        "test_catalog.test_bronze_schema.fake_orders_raw",
+        "/data/source/fake_orders",
+    )
+
+    st = next(o for o in registry.outputs if isinstance(o, StreamingTable))
+    assert st.comment is not None
+    assert len(st.comment) > 0
+
+
 # ---------------------------------------------------------------------------
 # Tests: create_silver_staging_table
 # ---------------------------------------------------------------------------
@@ -123,6 +135,18 @@ def test_create_silver_staging_table_registers_associated_flow(registry) -> None
         if f.target == "test_catalog.test_silver_schema.fake_orders_staging"
     ]
     assert len(flows) == 1
+
+
+def test_create_silver_staging_table_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the silver streaming table."""
+    _ADVANCED_PIPELINE.create_silver_staging_table(
+        "test_catalog.test_silver_schema.fake_orders_staging",
+        "test_catalog.test_bronze_schema.fake_orders_raw",
+    )
+
+    st = next(o for o in registry.outputs if isinstance(o, StreamingTable))
+    assert st.comment is not None
+    assert len(st.comment) > 0
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +216,18 @@ def test_create_gold_merged_table_cdc_uses_default_timestamp(registry, mock_cdc)
     )
 
     assert mock_cdc.call_args.kwargs["sequence_by"] == "timestamp"
+
+
+def test_create_gold_merged_table_has_non_empty_comment(registry, mock_cdc) -> None:
+    """Should attach a non-empty descriptive comment to the gold streaming table."""
+    _ADVANCED_PIPELINE.create_gold_merged_table(
+        silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
+        gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
+    )
+
+    st = next(o for o in registry.outputs if isinstance(o, StreamingTable))
+    assert st.comment is not None
+    assert len(st.comment) > 0
 
 
 def test_create_gold_merged_table_cdc_custom_keys(registry, mock_cdc) -> None:
@@ -293,3 +329,12 @@ def test_aggregate_gold_tables_registers_associated_flow(registry) -> None:
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
     flows = [f for f in registry.flows if f.target == mv.name]
     assert len(flows) == 1
+
+
+def test_aggregate_gold_tables_mv_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the aggregate gold materialized view."""
+    _ADVANCED_PIPELINE.aggregate_gold_tables()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.comment is not None
+    assert len(mv.comment) > 0

@@ -126,8 +126,8 @@ def create_gold_merged_table(
     dp.create_streaming_table(
         name=gold_table_name,
         comment=(
-            f"Gold streaming table: CDC-merged records keyed by"
-            f" {', '.join(prime_key_columns)}, sequenced by {timestamp_column}"
+            f"Gold streaming table: CDC-merged records keyed by "
+            f"{', '.join(prime_key_columns)}, sequenced by {timestamp_column}"
         ),
     )
     dp.create_auto_cdc_flow(

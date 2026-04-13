@@ -28,6 +28,12 @@ repos:
       - id: pyupgrade
         args: [--py310-plus]
 
+  # ── black: the uncompromising Python code formatter ─────────────────────
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
+    hooks:
+      - id: black
+
   # ── ruff: fast linting + formatting + import sorting ──────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.10

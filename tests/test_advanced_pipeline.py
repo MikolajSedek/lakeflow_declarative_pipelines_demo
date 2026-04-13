@@ -338,3 +338,144 @@ def test_aggregate_gold_tables_mv_has_non_empty_comment(registry) -> None:
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
     assert mv.comment is not None
     assert len(mv.comment) > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: create_gold_revenue_per_product
+# ---------------------------------------------------------------------------
+
+
+def test_revenue_per_product_registers_materialized_view(registry) -> None:
+    """Should register exactly one MaterializedView output for revenue per product."""
+    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 1
+
+
+def test_revenue_per_product_mv_name_is_fully_qualified(registry) -> None:
+    """Should register the view with the expected fully-qualified name."""
+    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.name == "test_catalog.test_gold_schema.revenue_per_product_gold"
+
+
+def test_revenue_per_product_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the revenue view."""
+    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.comment is not None
+    assert len(mv.comment) > 0
+
+
+def test_revenue_per_product_registers_associated_flow(registry) -> None:
+    """Should register an associated flow targeting the revenue per product view."""
+    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    flows = [f for f in registry.flows if f.target == mv.name]
+    assert len(flows) == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests: create_gold_customer_order_summary
+# ---------------------------------------------------------------------------
+
+
+def test_customer_order_summary_registers_materialized_view(registry) -> None:
+    """Should register exactly one MaterializedView output for customer order summary."""
+    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 1
+
+
+def test_customer_order_summary_mv_name_is_fully_qualified(registry) -> None:
+    """Should register the view with the expected fully-qualified name."""
+    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.name == "test_catalog.test_gold_schema.customer_order_summary_gold"
+
+
+def test_customer_order_summary_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the customer summary view."""
+    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.comment is not None
+    assert len(mv.comment) > 0
+
+
+def test_customer_order_summary_registers_associated_flow(registry) -> None:
+    """Should register an associated flow targeting the customer order summary view."""
+    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    flows = [f for f in registry.flows if f.target == mv.name]
+    assert len(flows) == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests: create_gold_orders_enriched
+# ---------------------------------------------------------------------------
+
+
+def test_orders_enriched_registers_materialized_view(registry) -> None:
+    """Should register exactly one MaterializedView output for enriched orders."""
+    _ADVANCED_PIPELINE.create_gold_orders_enriched()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 1
+
+
+def test_orders_enriched_mv_name_is_fully_qualified(registry) -> None:
+    """Should register the view with the expected fully-qualified name."""
+    _ADVANCED_PIPELINE.create_gold_orders_enriched()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.name == "test_catalog.test_gold_schema.orders_enriched_gold"
+
+
+def test_orders_enriched_has_non_empty_comment(registry) -> None:
+    """Should attach a non-empty descriptive comment to the enriched orders view."""
+    _ADVANCED_PIPELINE.create_gold_orders_enriched()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    assert mv.comment is not None
+    assert len(mv.comment) > 0
+
+
+def test_orders_enriched_registers_associated_flow(registry) -> None:
+    """Should register an associated flow targeting the enriched orders view."""
+    _ADVANCED_PIPELINE.create_gold_orders_enriched()
+
+    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
+    flows = [f for f in registry.flows if f.target == mv.name]
+    assert len(flows) == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests: create_all_gold_kpi_tables
+# ---------------------------------------------------------------------------
+
+
+def test_create_all_gold_kpi_tables_registers_three_materialized_views(registry) -> None:
+    """Should register exactly three MaterializedView outputs for all KPI tables."""
+    _ADVANCED_PIPELINE.create_all_gold_kpi_tables()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 3
+
+
+def test_create_all_gold_kpi_tables_names_are_unique(registry) -> None:
+    """Should register three materialized views with unique names."""
+    _ADVANCED_PIPELINE.create_all_gold_kpi_tables()
+
+    mv_names = {o.name for o in registry.outputs if isinstance(o, MaterializedView)}
+    assert len(mv_names) == 3
+    assert "test_catalog.test_gold_schema.revenue_per_product_gold" in mv_names
+    assert "test_catalog.test_gold_schema.customer_order_summary_gold" in mv_names
+    assert "test_catalog.test_gold_schema.orders_enriched_gold" in mv_names

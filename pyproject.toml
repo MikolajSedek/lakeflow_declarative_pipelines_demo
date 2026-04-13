@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit>=1.9.0",
+    "black>=24.0.0",
     "codespell>=2.4.0",
     "interrogate>=1.7.0",
     "mypy>=1.10.0",
@@ -32,6 +33,10 @@ python_functions = ["test_*"]
 markers = [
     "spark: tests that require a live SparkSession (deselect with '-m not spark')",
 ]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 100

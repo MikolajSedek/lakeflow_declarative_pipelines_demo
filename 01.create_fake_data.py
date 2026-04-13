@@ -1,5 +1,6 @@
 # Databricks notebook source
 """Databricks notebook that generates fake data and writes it to Volumes."""
+
 # MAGIC %pip install mimesis==19.1.0 pendulum==3.2.0 loguru==0.7.3
 # MAGIC
 
@@ -46,11 +47,22 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: Locale = LO
 
 
 # Orders Data
-def generate_orders_data(num_orders: int = NUM_ORDERS, locale: Locale = LOCALE) -> DataFrame:
+def generate_orders_data(
+    num_orders: int = NUM_ORDERS,
+    locale: Locale = LOCALE,
+    num_users: int = NUM_USERS,
+    num_products: int = NUM_PRODUCTS,
+) -> DataFrame:
     """
-    Generates fake orders data.
+    Generates fake orders data with valid foreign keys to users and products.
     """
-    orders_rows = generate_list_of_rows("orders", num_orders, locale)
+    orders_rows = generate_list_of_rows(
+        "orders",
+        num_orders,
+        locale,
+        num_users=num_users,
+        num_products=num_products,
+    )
     orders_df = spark.createDataFrame(orders_rows)
     return orders_df
 

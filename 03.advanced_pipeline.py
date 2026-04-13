@@ -30,7 +30,7 @@ TABLES_NAMES: tuple[str, ...] = ("fake_orders", "fake_products", "fake_users")
 PRIME_KEY_COLUMNS: tuple[str, ...] = ("id",)
 TIMESTAMP_COLUMN = "timestamp"
 
-# table name suffixes – extracted as constants to avoid inline magic strings
+# table name suffixes - extracted as constants to avoid inline magic strings
 # (Palantir PySpark style guide: avoid literal strings in logic)
 BRONZE_TABLE_SUFFIX = "_raw"
 SILVER_TABLE_SUFFIX = "_staging"
@@ -213,6 +213,147 @@ def aggregate_gold_tables(
         return reduced_frame
 
 
+# ---------------------------------------------------------------------------
+# Gold KPI tables - joined & aggregated business views
+# ---------------------------------------------------------------------------
+
+# Fully-qualified gold table paths used by KPI views
+_ORDERS_GOLD = f"{TARGET_CATALOG}.{GOLD_SCHEMA}.fake_orders{GOLD_TABLE_SUFFIX}"
+_PRODUCTS_GOLD = f"{TARGET_CATALOG}.{GOLD_SCHEMA}.fake_products{GOLD_TABLE_SUFFIX}"
+_USERS_GOLD = f"{TARGET_CATALOG}.{GOLD_SCHEMA}.fake_users{GOLD_TABLE_SUFFIX}"
+
+
+def create_gold_revenue_per_product(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view with revenue KPIs aggregated by product.
+
+    Joins orders with products on ``productid == id`` and computes:
+    * **total_revenue** - sum of order prices per product
+    * **order_count** - number of orders per product
+    * **avg_order_value** - average order price per product
+    """
+    table_name = f"{target_catalog}.{gold_schema}.revenue_per_product_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold KPI: revenue, order count, and average order value"
+            " aggregated per product (orders ⟶ products join)"
+        ),
+    )
+    def revenue_per_product():
+        orders = spark.read.table(_ORDERS_GOLD)
+        products = spark.read.table(_PRODUCTS_GOLD)
+
+        joined = orders.join(products, orders["productid"] == products["id"], how="inner")
+
+        result = joined.groupBy(
+            products["id"].alias("product_id"),
+            products["product_name"],
+            products["company_name"],
+        ).agg(
+            F.sum(orders["price"]).alias("total_revenue"),
+            F.count("*").alias("order_count"),
+            F.round(F.avg(orders["price"]), 2).alias("avg_order_value"),
+        )
+        return result
+
+
+def create_gold_customer_order_summary(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view with order KPIs aggregated by customer.
+
+    Joins orders with users on ``userid == id`` and computes:
+    * **total_spend** - total amount spent per customer
+    * **order_count** - number of orders per customer
+    * **avg_order_value** - average order price per customer
+    """
+    table_name = f"{target_catalog}.{gold_schema}.customer_order_summary_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold KPI: total spend, order count, and average order value"
+            " aggregated per customer (orders ⟶ users join)"
+        ),
+    )
+    def customer_order_summary():
+        orders = spark.read.table(_ORDERS_GOLD)
+        users = spark.read.table(_USERS_GOLD)
+
+        joined = orders.join(users, orders["userid"] == users["id"], how="inner")
+
+        result = joined.groupBy(
+            users["id"].alias("customer_id"),
+            users["person_name"],
+            users["city"],
+            users["country"],
+        ).agg(
+            F.sum(orders["price"]).alias("total_spend"),
+            F.count("*").alias("order_count"),
+            F.round(F.avg(orders["price"]), 2).alias("avg_order_value"),
+        )
+        return result
+
+
+def create_gold_orders_enriched(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view that enriches orders with user and product details.
+
+    Performs a three-way join (orders ⟶ users, orders ⟶ products) to produce a
+    wide fact table suitable for BI dashboards and ad-hoc analysis.
+    """
+    table_name = f"{target_catalog}.{gold_schema}.orders_enriched_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold enriched fact table: orders joined with user and product"
+            " details for BI dashboards and ad-hoc analysis"
+        ),
+    )
+    def orders_enriched():
+        orders = spark.read.table(_ORDERS_GOLD)
+        users = spark.read.table(_USERS_GOLD)
+        products = spark.read.table(_PRODUCTS_GOLD)
+
+        enriched = (
+            orders.join(users, orders["userid"] == users["id"], how="left")
+            .join(products, orders["productid"] == products["id"], how="left")
+            .select(
+                orders["id"].alias("order_id"),
+                orders["userid"],
+                users["person_name"].alias("customer_name"),
+                users["city"].alias("customer_city"),
+                users["country"].alias("customer_country"),
+                orders["productid"],
+                products["product_name"],
+                products["company_name"].alias("product_company"),
+                orders["price"].alias("order_price"),
+                products["price"].alias("product_list_price"),
+                orders["timestamp"].alias("order_timestamp"),
+            )
+        )
+        return enriched
+
+
+def create_all_gold_kpi_tables(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Register all gold-layer KPI materialized views."""
+    create_gold_revenue_per_product(target_catalog, gold_schema)
+    create_gold_customer_order_summary(target_catalog, gold_schema)
+    create_gold_orders_enriched(target_catalog, gold_schema)
+
+
 if __name__ == "__main__":
     run_all_pipelines()
     aggregate_gold_tables()
+    create_all_gold_kpi_tables()

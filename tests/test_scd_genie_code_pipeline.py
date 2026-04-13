@@ -18,7 +18,7 @@ from pyspark.pipelines.output import StreamingTable
 # Module loader
 # ---------------------------------------------------------------------------
 
-_PIPELINE_PATH = Path(__file__).parent.parent / "04.scd_genie_code_pipeline.py"
+_PIPELINE_PATH = Path(__file__).parent.parent / "src/python/notebooks/04.scd_genie_code_pipeline.py"
 
 
 def _load_pipeline_module():

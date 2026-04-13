@@ -3,16 +3,15 @@ Unit tests for pure PySpark transformation functions defined in transformations.
 """
 
 import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.types import TimestampType
-
-from transformations import (
+from modules.transformations import (
     add_load_timestamp,
     anonymize_sensitive_data,
     extract_file_name_from_metadata,
     lower_all_column_names,
     remove_nonsense_columns,
 )
+from pyspark.sql import SparkSession
+from pyspark.sql.types import TimestampType
 
 pytestmark = pytest.mark.spark
 

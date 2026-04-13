@@ -14,7 +14,7 @@ import pyspark.pipelines as dp_mod
 import pytest
 from pyspark.pipelines.output import MaterializedView, StreamingTable
 
-_PIPELINE_PATH = Path(__file__).parent.parent / "03.advanced_pipeline.py"
+_PIPELINE_PATH = Path(__file__).parent.parent / "src/python/notebooks/03.advanced_pipeline.py"
 
 
 def _load_advanced_pipeline_module():

@@ -5,9 +5,8 @@ All tested functions are pure (no SparkSession dependency).
 """
 
 import pytest
+from modules.data_generation import FrameConfig, generate_list_of_rows
 from pyspark.sql import Row
-
-from data_generation import FrameConfig, generate_list_of_rows
 
 # ---------------------------------------------------------------------------
 # Fixtures

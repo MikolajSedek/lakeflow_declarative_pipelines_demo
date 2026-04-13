@@ -343,6 +343,126 @@ def create_gold_orders_enriched(
         return enriched
 
 
+def create_gold_revenue_by_geography(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view with revenue KPIs aggregated by geography.
+
+    Joins orders with users on ``userid == id`` and computes per country/city:
+    * **total_revenue** - sum of order prices
+    * **order_count** - number of orders
+    * **unique_customers** - distinct buyers
+    * **avg_order_value** - average order price
+    """
+    table_name = f"{target_catalog}.{gold_schema}.revenue_by_geography_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold KPI: revenue, order count, unique customers, and average"
+            " order value aggregated by country and city (orders ⟶ users join)"
+        ),
+    )
+    def revenue_by_geography():
+        orders = spark.read.table(_ORDERS_GOLD)
+        users = spark.read.table(_USERS_GOLD)
+
+        joined = orders.join(users, orders["userid"] == users["id"], how="inner")
+
+        result = joined.groupBy(
+            users["country"],
+            users["city"],
+        ).agg(
+            F.sum(orders["price"]).alias("total_revenue"),
+            F.count("*").alias("order_count"),
+            F.countDistinct(orders["userid"]).alias("unique_customers"),
+            F.round(F.avg(orders["price"]), 2).alias("avg_order_value"),
+        )
+        return result
+
+
+def create_gold_company_sales_performance(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view with sales KPIs aggregated by product company.
+
+    Joins orders with products on ``productid == id`` and computes per brand:
+    * **total_revenue** - sum of order prices
+    * **order_count** - number of orders
+    * **unique_products_sold** - distinct products ordered
+    * **avg_order_value** - average order price
+    """
+    table_name = f"{target_catalog}.{gold_schema}.company_sales_performance_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold KPI: revenue, order count, unique products sold, and average"
+            " order value aggregated by product company (orders ⟶ products join)"
+        ),
+    )
+    def company_sales_performance():
+        orders = spark.read.table(_ORDERS_GOLD)
+        products = spark.read.table(_PRODUCTS_GOLD)
+
+        joined = orders.join(products, orders["productid"] == products["id"], how="inner")
+
+        result = joined.groupBy(
+            products["company_name"],
+        ).agg(
+            F.sum(orders["price"]).alias("total_revenue"),
+            F.count("*").alias("order_count"),
+            F.countDistinct(products["id"]).alias("unique_products_sold"),
+            F.round(F.avg(orders["price"]), 2).alias("avg_order_value"),
+        )
+        return result
+
+
+def create_gold_top_products_by_country(
+    target_catalog: str = TARGET_CATALOG,
+    gold_schema: str = GOLD_SCHEMA,
+) -> None:
+    """Create a materialized view ranking products by revenue within each country.
+
+    Performs a three-way join (orders ⟶ users, orders ⟶ products) and computes
+    per product-country combination:
+    * **total_revenue** - sum of order prices
+    * **order_count** - number of orders
+    * **avg_order_value** - average order price
+    """
+    table_name = f"{target_catalog}.{gold_schema}.top_products_by_country_gold"
+
+    @dp.materialized_view(
+        name=table_name,
+        comment=(
+            "Gold KPI: revenue, order count, and average order value per"
+            " product per country (orders ⟶ users + products three-way join)"
+        ),
+    )
+    def top_products_by_country():
+        orders = spark.read.table(_ORDERS_GOLD)
+        users = spark.read.table(_USERS_GOLD)
+        products = spark.read.table(_PRODUCTS_GOLD)
+
+        joined = orders.join(users, orders["userid"] == users["id"], how="inner").join(
+            products, orders["productid"] == products["id"], how="inner"
+        )
+
+        result = joined.groupBy(
+            users["country"],
+            products["id"].alias("product_id"),
+            products["product_name"],
+            products["company_name"],
+        ).agg(
+            F.sum(orders["price"]).alias("total_revenue"),
+            F.count("*").alias("order_count"),
+            F.round(F.avg(orders["price"]), 2).alias("avg_order_value"),
+        )
+        return result
+
+
 def create_all_gold_kpi_tables(
     target_catalog: str = TARGET_CATALOG,
     gold_schema: str = GOLD_SCHEMA,
@@ -351,6 +471,9 @@ def create_all_gold_kpi_tables(
     create_gold_revenue_per_product(target_catalog, gold_schema)
     create_gold_customer_order_summary(target_catalog, gold_schema)
     create_gold_orders_enriched(target_catalog, gold_schema)
+    create_gold_revenue_by_geography(target_catalog, gold_schema)
+    create_gold_company_sales_performance(target_catalog, gold_schema)
+    create_gold_top_products_by_country(target_catalog, gold_schema)
 
 
 if __name__ == "__main__":

@@ -14,9 +14,9 @@ from pyspark.sql import DataFrame
 
 from data_generation import FrameConfig, generate_list_of_rows
 
-NUM_USERS = 2000
-NUM_PRODUCTS = 1500
-NUM_ORDERS = 3000
+NUM_USERS = 20000
+NUM_PRODUCTS = 15000
+NUM_ORDERS = 30000
 LOCALE = Locale.EN
 WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 

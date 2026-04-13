@@ -25,7 +25,10 @@ def create_simple_materialized_view(
     table_path = f"{catalog}.{schema}.{table_name}_simple_table"
     full_source_path = f"{source_path}/{table_name}"
 
-    @dp.materialized_view(name=table_path)
+    @dp.materialized_view(
+        name=table_path,
+        comment=f"Raw {table_name} data loaded directly from CSV source files.",
+    )
     def simple_table():
         source_frame = (
             spark.read.format(file_format).option("header", header).load(full_source_path)

@@ -173,3 +173,131 @@ def test_customer_order_summary_aggregation_is_not_empty(orders_df, users_df) ->
         F.count("*").alias("order_count"),
     )
     assert agg.count() > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: geography aggregation (revenue by country/city)
+# ---------------------------------------------------------------------------
+
+
+def test_revenue_by_geography_aggregation_is_not_empty(orders_df, users_df) -> None:
+    """Should produce at least one geography revenue row after aggregation."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        users_df,
+        orders_df["userid"] == users_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(users_df["country"], users_df["city"]).agg(
+        F.sum(orders_df["price"]).alias("total_revenue"),
+        F.count("*").alias("order_count"),
+        F.countDistinct(orders_df["userid"]).alias("unique_customers"),
+    )
+    assert agg.count() > 0
+
+
+def test_revenue_by_geography_has_positive_revenue(orders_df, users_df) -> None:
+    """Should produce positive total revenue for every geography row."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        users_df,
+        orders_df["userid"] == users_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(users_df["country"], users_df["city"]).agg(
+        F.sum(orders_df["price"]).alias("total_revenue"),
+    )
+    negative_rows = agg.filter(F.col("total_revenue") <= 0).count()
+    assert negative_rows == 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: company sales performance aggregation
+# ---------------------------------------------------------------------------
+
+
+def test_company_sales_performance_aggregation_is_not_empty(orders_df, products_df) -> None:
+    """Should produce at least one company sales row after aggregation."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        products_df,
+        orders_df["productid"] == products_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(products_df["company_name"]).agg(
+        F.sum(orders_df["price"]).alias("total_revenue"),
+        F.count("*").alias("order_count"),
+        F.countDistinct(products_df["id"]).alias("unique_products_sold"),
+    )
+    assert agg.count() > 0
+
+
+def test_company_sales_performance_order_count_matches_total(orders_df, products_df) -> None:
+    """Should have per-company order counts that sum to the total order count."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        products_df,
+        orders_df["productid"] == products_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(products_df["company_name"]).agg(
+        F.count("*").alias("order_count"),
+    )
+    total = agg.agg(F.sum("order_count")).collect()[0][0]
+    assert total == orders_df.count()
+
+
+# ---------------------------------------------------------------------------
+# Tests: top products by country aggregation (three-way join)
+# ---------------------------------------------------------------------------
+
+
+def test_top_products_by_country_aggregation_is_not_empty(orders_df, users_df, products_df) -> None:
+    """Should produce at least one product-country row after aggregation."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        users_df,
+        orders_df["userid"] == users_df["id"],
+        how="inner",
+    ).join(
+        products_df,
+        orders_df["productid"] == products_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(
+        users_df["country"],
+        products_df["id"],
+        products_df["product_name"],
+    ).agg(
+        F.sum(orders_df["price"]).alias("total_revenue"),
+        F.count("*").alias("order_count"),
+    )
+    assert agg.count() > 0
+
+
+def test_top_products_by_country_preserves_all_orders(orders_df, users_df, products_df) -> None:
+    """Should have per-product-country order counts that sum to total orders."""
+    import pyspark.sql.functions as F
+
+    joined = orders_df.join(
+        users_df,
+        orders_df["userid"] == users_df["id"],
+        how="inner",
+    ).join(
+        products_df,
+        orders_df["productid"] == products_df["id"],
+        how="inner",
+    )
+    agg = joined.groupBy(
+        users_df["country"],
+        products_df["id"],
+    ).agg(
+        F.count("*").alias("order_count"),
+    )
+    total = agg.agg(F.sum("order_count")).collect()[0][0]
+    assert total == orders_df.count()

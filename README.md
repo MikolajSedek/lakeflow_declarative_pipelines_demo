@@ -80,6 +80,8 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 │   ├── test_pipelines.py              # Tests for pipeline decorator registration (no Spark)
 │   ├── test_simple_pipeline.py        # Tests for simple materialized view pipeline (no Spark)
 │   ├── test_advanced_pipeline.py      # Tests for advanced medallion pipeline registration (no Spark)
+│   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline (no Spark)
+│   ├── test_joinability.py            # Tests for join correctness and aggregation (Spark)
 │   └── test_transformations.py        # Tests for transformation functions (Spark)
 ├── pyproject.toml              # Project metadata, tool configuration
 ├── requirements.txt            # Runtime + test dependencies
@@ -135,6 +137,9 @@ The full **Bronze → Silver → Gold** medallion pipeline with:
 | KPI    | `create_gold_revenue_per_product`   | Joins orders with products to compute revenue, order count, and avg order value per product |
 | KPI    | `create_gold_customer_order_summary`| Joins orders with users to compute total spend, order count, and avg order value per customer |
 | KPI    | `create_gold_orders_enriched`       | Three-way join (orders → users → products) producing a wide fact table for BI dashboards |
+| KPI    | `create_gold_revenue_by_geography`  | Joins orders with users to compute revenue, order count, unique customers, and avg order value per country/city |
+| KPI    | `create_gold_company_sales_performance` | Joins orders with products to compute revenue, order count, unique products sold, and avg order value per company/brand |
+| KPI    | `create_gold_top_products_by_country` | Three-way join (orders → users → products) to compute revenue and order count per product per country |
 
 **Configuration** is centralized in the `TablePipelineConfig` frozen dataclass (Pydantic), making it easy to override catalogs, schemas, and key columns per environment.
 
@@ -235,7 +240,8 @@ pytest tests/ -m spark -v
 | `test_pipelines`               | 31    | Decorator registration, flow creation, name inference, config freezing |
 | `test_scd_genie_code_pipeline` | 24    | SCD Type 2 pipeline constants, streaming table registration, CDC flow invocation |
 | `test_simple_pipeline`         | 8     | `create_simple_materialized_view` registration, name generation, `create_tables` |
-| `test_advanced_pipeline`       | 40    | Bronze/silver/gold table registration, CDC invocation, `TablePipelineConfig`, aggregation, KPI tables |
+| `test_advanced_pipeline`       | 52    | Bronze/silver/gold table registration, CDC invocation, `TablePipelineConfig`, aggregation, KPI tables (incl. geography, company sales, top products by country) |
+| `test_joinability`             | 16    | Join correctness, FK integrity, aggregation verification for all gold KPI patterns |
 
 The test suite uses a **session-scoped** local `SparkSession` (`local[1]`, UI disabled, 1 shuffle partition) to minimize JVM startup overhead.
 

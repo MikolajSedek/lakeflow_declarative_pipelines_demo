@@ -6,6 +6,7 @@ pyspark>=4.0.0
 
 # testing & dev
 bandit>=1.9.0
+black>=24.0.0
 codespell>=2.4.0
 interrogate>=1.7.0
 mypy>=1.10.0

@@ -260,7 +260,7 @@ The project enforces strict code quality through a comprehensive pre-commit conf
 |---------------|--------------------------------------------|------------------------------|
 | **Black**     | Uncompromising Python code formatting       | All Python files             |
 | **Ruff**      | Linting (E/F/W/I/B/S/UP/C4/SIM/T20/RUF/PT/PERF) + formatting | All Python files |
-| **mypy**      | Static type checking                       | `modules/transformations.py`, `modules/data_generation.py` |
+| **mypy**      | Static type checking                       | `src/python/notebooks/modules/transformations.py`, `src/python/notebooks/modules/data_generation.py` |
 | **Bandit**    | Security linting                           | Production modules           |
 | **pydocstyle**| Google-style docstring enforcement         | Production modules           |
 | **interrogate**| Docstring coverage (≥95%)                 | All modules                  |

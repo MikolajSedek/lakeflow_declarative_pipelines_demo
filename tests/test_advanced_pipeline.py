@@ -3,7 +3,7 @@
 Tests verify that the bronze/silver/gold pipeline functions register the
 correct outputs and flows, and that the Databricks-only ``create_auto_cdc_flow``
 is called with the right arguments.  No Databricks Runtime or live SparkSession
-is required – inner query functions are registered but never executed here.
+is required - inner query functions are registered but never executed here.
 """
 
 import importlib.util
@@ -88,9 +88,7 @@ def test_create_raw_bronze_table_registers_associated_flow(registry) -> None:
     )
 
     flows = [
-        f
-        for f in registry.flows
-        if f.target == "test_catalog.test_bronze_schema.fake_orders_raw"
+        f for f in registry.flows if f.target == "test_catalog.test_bronze_schema.fake_orders_raw"
     ]
     assert len(flows) == 1
 
@@ -162,8 +160,7 @@ def test_create_gold_merged_table_cdc_source_is_silver(registry, mock_cdc) -> No
     )
 
     assert (
-        mock_cdc.call_args.kwargs["source"]
-        == "test_catalog.test_silver_schema.fake_orders_staging"
+        mock_cdc.call_args.kwargs["source"] == "test_catalog.test_silver_schema.fake_orders_staging"
     )
 
 
@@ -174,9 +171,7 @@ def test_create_gold_merged_table_cdc_target_is_gold(registry, mock_cdc) -> None
         gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
     )
 
-    assert (
-        mock_cdc.call_args.kwargs["target"] == "test_catalog.test_gold_schema.fake_orders_clean"
-    )
+    assert mock_cdc.call_args.kwargs["target"] == "test_catalog.test_gold_schema.fake_orders_clean"
 
 
 def test_create_gold_merged_table_cdc_uses_default_key(registry, mock_cdc) -> None:

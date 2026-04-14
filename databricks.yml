@@ -15,7 +15,7 @@ targets:
 
   prod:
     mode: development # NOTE: it's currently switched to development for demo purposes; change to production for production deployments and set up appropriate run_as user for your environment
-    
+
 
 # ── Resources ────────────────────────────────────────────────────────────────
 resources:

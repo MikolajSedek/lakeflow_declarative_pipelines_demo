@@ -241,8 +241,8 @@ def remove_punctuation(s: str) -> str:
     return ''.join(c for c in s if c.isalnum() or c.isspace())
 
 
-normalise = compose(to_lower, strip, remove_punctuation)
-print(normalise("  Hello, World!  "))  # "hello world"
+normalize = compose(to_lower, strip, remove_punctuation)
+print(normalize("  Hello, World!  "))  # "hello world"
 ```
 
 For data pipelines with many steps, prefer explicit intermediate variables over deeply nested calls:
@@ -288,7 +288,7 @@ def transform(items: Iterable[int]) -> Iterable[int]:
 
 ## Recursion
 
-Python does **not** optimise tail calls. Keep recursion for naturally hierarchical problems (trees, nested structures) where the depth is bounded and shallow (well below the default 1 000-frame limit).
+Python does **not** optimize tail calls. Keep recursion for naturally hierarchical problems (trees, nested structures) where the depth is bounded and shallow (well below the default 1 000-frame limit).
 
 ```python
 from typing import List
@@ -318,7 +318,7 @@ def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
 
 
-def normalise_text(text: str) -> str:
+def normalize_text(text: str) -> str:
     return text.strip().lower()
 
 
@@ -340,8 +340,8 @@ def test_clamp(value, lo, hi, expected):
     ('WORLD\n', 'world'),
     ('', ''),
 ])
-def test_normalise_text(raw, expected):
-    assert normalise_text(raw) == expected
+def test_normalize_text(raw, expected):
+    assert normalize_text(raw) == expected
 ```
 
 **Testing guidelines for FP code:**

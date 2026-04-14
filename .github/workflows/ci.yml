@@ -78,9 +78,7 @@ jobs:
   deploy:
     name: Deploy Databricks Asset Bundle
     needs: [lint, test-pure, test-spark]
-    if: >
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test')
+    if: "github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test')"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

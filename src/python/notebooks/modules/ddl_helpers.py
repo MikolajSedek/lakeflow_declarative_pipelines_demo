@@ -39,8 +39,8 @@ def _quote_identifier(name: str) -> str:
         name: Databricks identifier (catalog, schema, or volume name).
 
     Returns:
-        The identifier wrapped in backticks, e.g. ``test_catalog`` becomes
-        ```test_catalog```.
+        The identifier wrapped in backticks.  For example, ``test_catalog``
+        becomes the string ```test_catalog``` (with literal backtick characters).
 
     Raises:
         ValueError: If *name* is empty or contains characters outside the
@@ -84,9 +84,7 @@ def build_create_schema_sql(catalog: str, schema: str) -> str:
     Raises:
         ValueError: If *catalog* or *schema* contains injection-prone characters.
     """
-    return (
-        f"CREATE SCHEMA IF NOT EXISTS {_quote_identifier(catalog)}.{_quote_identifier(schema)}"
-    )
+    return f"CREATE SCHEMA IF NOT EXISTS {_quote_identifier(catalog)}.{_quote_identifier(schema)}"
 
 
 def build_create_volume_sql(catalog: str, schema: str, volume: str) -> str:

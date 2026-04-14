@@ -35,6 +35,10 @@ SEQUENCE_COLUMN = "timestamp"
 # Columns to track history for (SCD Type 2) — immutable tuple per FP principles
 HISTORY_TRACKED_COLUMNS: tuple[str, ...] = ("productid", "userid")
 
+# Pre-built list consumed by dp.create_auto_cdc_flow (API requires a list).
+# Derived once at module level to avoid constructing a new list on every call.
+_HISTORY_TRACKED_COLUMNS_LIST: list[str] = list(HISTORY_TRACKED_COLUMNS)
+
 
 def create_orders_scd2_table() -> None:
     """
@@ -61,7 +65,7 @@ def create_orders_scd2_table() -> None:
         keys=[KEY_COLUMN],
         sequence_by=SEQUENCE_COLUMN,
         stored_as_scd_type=2,
-        track_history_column_list=list(HISTORY_TRACKED_COLUMNS),
+        track_history_column_list=_HISTORY_TRACKED_COLUMNS_LIST,
         ignore_null_updates=True,
     )
 

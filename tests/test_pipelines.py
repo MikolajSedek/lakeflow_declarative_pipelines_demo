@@ -286,23 +286,26 @@ def test_output_types_are_distinct(registry) -> None:
 
 
 @pytest.mark.parametrize(
-    "action",
+    ("action", "error_match"),
     [
         pytest.param(
             lambda: materialized_view(name="should_fail")(lambda: None),
+            r"context",
             id="materialized_view",
         ),
         pytest.param(
             lambda: table(name="also_fails")(lambda: None),
+            r"context",
             id="table",
         ),
         pytest.param(
             lambda: create_streaming_table(name="no_context"),
+            r"context",
             id="create_streaming_table",
         ),
     ],
 )
-def test_decorator_outside_context_raises(action) -> None:
+def test_decorator_outside_context_raises(action, error_match: str) -> None:
     """Should raise PySparkRuntimeError when any pipeline decorator is used without a context."""
-    with pytest.raises(PySparkRuntimeError):
+    with pytest.raises(PySparkRuntimeError, match=error_match):
         action()

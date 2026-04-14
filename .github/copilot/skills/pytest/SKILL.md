@@ -146,7 +146,7 @@ def test_add_negative():
 
 
 # good – one parametrized function
-@pytest.mark.parametrize("a, b, expected", [
+@pytest.mark.parametrize(("a", "b", "expected"), [
     (2, 3, 5),
     (0, 5, 5),
     (-1, 1, 0),
@@ -158,7 +158,7 @@ def test_add(a, b, expected):
 ### Use `pytest.param` for readable IDs and per-case marks
 
 ```python
-@pytest.mark.parametrize("value, expected", [
+@pytest.mark.parametrize(("value", "expected"), [
     pytest.param("hello", True, id="valid-string"),
     pytest.param("", False, id="empty-string"),
     pytest.param(None, False, id="none-value", marks=pytest.mark.xfail),
@@ -392,7 +392,7 @@ Pure functions (no side effects, deterministic output) are the easiest to test.
 Always test them with `@pytest.mark.parametrize`:
 
 ```python
-@pytest.mark.parametrize("row_type,num_rows,expected_len", [
+@pytest.mark.parametrize(("row_type", "num_rows", "expected_len"), [
     ("users",    5,  5),
     ("products", 0,  0),
     ("orders",   10, 10),

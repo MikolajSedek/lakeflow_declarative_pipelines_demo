@@ -48,34 +48,20 @@ def mock_cdc():
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_source_table() -> None:
-    """Should reference the silver-layer staging table as the CDC source."""
-    assert _PIPELINE.SOURCE_TABLE == "test_catalog.test_silver_schema.fake_orders_staging"
-
-
-def test_pipeline_target_catalog() -> None:
-    """Should use test_catalog as the target catalog."""
-    assert _PIPELINE.TARGET_CATALOG == "test_catalog"
-
-
-def test_pipeline_gold_schema() -> None:
-    """Should use the gold schema for the output table."""
-    assert _PIPELINE.GOLD_SCHEMA == "test_gold_schema"
-
-
-def test_pipeline_target_table_name() -> None:
-    """Should name the target table fake_orders_scd2."""
-    assert _PIPELINE.TARGET_TABLE_NAME == "fake_orders_scd2"
-
-
-def test_pipeline_key_column() -> None:
-    """Should use 'id' as the primary key column."""
-    assert _PIPELINE.KEY_COLUMN == "id"
-
-
-def test_pipeline_sequence_column() -> None:
-    """Should use 'timestamp' as the sequencing column for CDC ordering."""
-    assert _PIPELINE.SEQUENCE_COLUMN == "timestamp"
+@pytest.mark.parametrize(
+    ("attr", "expected"),
+    [
+        ("SOURCE_TABLE", "test_catalog.test_silver_schema.fake_orders_staging"),
+        ("TARGET_CATALOG", "test_catalog"),
+        ("GOLD_SCHEMA", "test_gold_schema"),
+        ("TARGET_TABLE_NAME", "fake_orders_scd2"),
+        ("KEY_COLUMN", "id"),
+        ("SEQUENCE_COLUMN", "timestamp"),
+    ],
+)
+def test_pipeline_module_constant(attr: str, expected: str) -> None:
+    """Should define each module-level constant with its expected value."""
+    assert getattr(_PIPELINE, attr) == expected
 
 
 def test_pipeline_history_tracked_columns() -> None:

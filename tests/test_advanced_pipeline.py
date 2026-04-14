@@ -340,117 +340,71 @@ def test_aggregate_gold_tables_mv_has_non_empty_comment(registry) -> None:
     assert len(mv.comment) > 0
 
 
+_GOLD_KPI_CASES = [
+    (
+        _ADVANCED_PIPELINE.create_gold_revenue_per_product,
+        "test_catalog.test_gold_schema.revenue_per_product_gold",
+    ),
+    (
+        _ADVANCED_PIPELINE.create_gold_customer_order_summary,
+        "test_catalog.test_gold_schema.customer_order_summary_gold",
+    ),
+    (
+        _ADVANCED_PIPELINE.create_gold_orders_enriched,
+        "test_catalog.test_gold_schema.orders_enriched_gold",
+    ),
+    (
+        _ADVANCED_PIPELINE.create_gold_revenue_by_geography,
+        "test_catalog.test_gold_schema.revenue_by_geography_gold",
+    ),
+    (
+        _ADVANCED_PIPELINE.create_gold_company_sales_performance,
+        "test_catalog.test_gold_schema.company_sales_performance_gold",
+    ),
+    (
+        _ADVANCED_PIPELINE.create_gold_top_products_by_country,
+        "test_catalog.test_gold_schema.top_products_by_country_gold",
+    ),
+]
+
+
 # ---------------------------------------------------------------------------
-# Tests: create_gold_revenue_per_product
+# Tests: individual gold KPI table creators (parametrized over all six views)
 # ---------------------------------------------------------------------------
 
 
-def test_revenue_per_product_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for revenue per product."""
-    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+@pytest.mark.parametrize(("create_fn", "expected_name"), _GOLD_KPI_CASES)
+def test_gold_kpi_view_registers_one_materialized_view(registry, create_fn, expected_name) -> None:
+    """Should register exactly one MaterializedView output."""
+    create_fn()
 
     mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
     assert len(mv_outputs) == 1
 
 
-def test_revenue_per_product_mv_name_is_fully_qualified(registry) -> None:
+@pytest.mark.parametrize(("create_fn", "expected_name"), _GOLD_KPI_CASES)
+def test_gold_kpi_view_name_is_fully_qualified(registry, create_fn, expected_name: str) -> None:
     """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+    create_fn()
 
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.revenue_per_product_gold"
+    assert mv.name == expected_name
 
 
-def test_revenue_per_product_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the revenue view."""
-    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
+@pytest.mark.parametrize(("create_fn", "expected_name"), _GOLD_KPI_CASES)
+def test_gold_kpi_view_has_non_empty_comment(registry, create_fn, expected_name) -> None:
+    """Should attach a non-empty descriptive comment to the materialized view."""
+    create_fn()
 
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
     assert mv.comment is not None
     assert len(mv.comment) > 0
 
 
-def test_revenue_per_product_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the revenue per product view."""
-    _ADVANCED_PIPELINE.create_gold_revenue_per_product()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    flows = [f for f in registry.flows if f.target == mv.name]
-    assert len(flows) == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: create_gold_customer_order_summary
-# ---------------------------------------------------------------------------
-
-
-def test_customer_order_summary_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for customer order summary."""
-    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
-
-    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
-    assert len(mv_outputs) == 1
-
-
-def test_customer_order_summary_mv_name_is_fully_qualified(registry) -> None:
-    """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.customer_order_summary_gold"
-
-
-def test_customer_order_summary_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the customer summary view."""
-    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.comment is not None
-    assert len(mv.comment) > 0
-
-
-def test_customer_order_summary_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the customer order summary view."""
-    _ADVANCED_PIPELINE.create_gold_customer_order_summary()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    flows = [f for f in registry.flows if f.target == mv.name]
-    assert len(flows) == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: create_gold_orders_enriched
-# ---------------------------------------------------------------------------
-
-
-def test_orders_enriched_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for enriched orders."""
-    _ADVANCED_PIPELINE.create_gold_orders_enriched()
-
-    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
-    assert len(mv_outputs) == 1
-
-
-def test_orders_enriched_mv_name_is_fully_qualified(registry) -> None:
-    """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_orders_enriched()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.orders_enriched_gold"
-
-
-def test_orders_enriched_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the enriched orders view."""
-    _ADVANCED_PIPELINE.create_gold_orders_enriched()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.comment is not None
-    assert len(mv.comment) > 0
-
-
-def test_orders_enriched_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the enriched orders view."""
-    _ADVANCED_PIPELINE.create_gold_orders_enriched()
+@pytest.mark.parametrize(("create_fn", "expected_name"), _GOLD_KPI_CASES)
+def test_gold_kpi_view_registers_associated_flow(registry, create_fn, expected_name) -> None:
+    """Should register exactly one flow targeting the materialized view."""
+    create_fn()
 
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
     flows = [f for f in registry.flows if f.target == mv.name]
@@ -482,120 +436,3 @@ def test_create_all_gold_kpi_tables_names_are_unique(registry) -> None:
     assert "test_catalog.test_gold_schema.revenue_by_geography_gold" in mv_names
     assert "test_catalog.test_gold_schema.company_sales_performance_gold" in mv_names
     assert "test_catalog.test_gold_schema.top_products_by_country_gold" in mv_names
-
-
-# ---------------------------------------------------------------------------
-# Tests: create_gold_revenue_by_geography
-# ---------------------------------------------------------------------------
-
-
-def test_revenue_by_geography_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for revenue by geography."""
-    _ADVANCED_PIPELINE.create_gold_revenue_by_geography()
-
-    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
-    assert len(mv_outputs) == 1
-
-
-def test_revenue_by_geography_mv_name_is_fully_qualified(registry) -> None:
-    """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_revenue_by_geography()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.revenue_by_geography_gold"
-
-
-def test_revenue_by_geography_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the geography revenue view."""
-    _ADVANCED_PIPELINE.create_gold_revenue_by_geography()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.comment is not None
-    assert len(mv.comment) > 0
-
-
-def test_revenue_by_geography_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the geography revenue view."""
-    _ADVANCED_PIPELINE.create_gold_revenue_by_geography()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    flows = [f for f in registry.flows if f.target == mv.name]
-    assert len(flows) == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: create_gold_company_sales_performance
-# ---------------------------------------------------------------------------
-
-
-def test_company_sales_performance_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for company sales."""
-    _ADVANCED_PIPELINE.create_gold_company_sales_performance()
-
-    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
-    assert len(mv_outputs) == 1
-
-
-def test_company_sales_performance_mv_name_is_fully_qualified(registry) -> None:
-    """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_company_sales_performance()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.company_sales_performance_gold"
-
-
-def test_company_sales_performance_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the company sales view."""
-    _ADVANCED_PIPELINE.create_gold_company_sales_performance()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.comment is not None
-    assert len(mv.comment) > 0
-
-
-def test_company_sales_performance_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the company sales view."""
-    _ADVANCED_PIPELINE.create_gold_company_sales_performance()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    flows = [f for f in registry.flows if f.target == mv.name]
-    assert len(flows) == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: create_gold_top_products_by_country
-# ---------------------------------------------------------------------------
-
-
-def test_top_products_by_country_registers_materialized_view(registry) -> None:
-    """Should register exactly one MaterializedView output for top products by country."""
-    _ADVANCED_PIPELINE.create_gold_top_products_by_country()
-
-    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
-    assert len(mv_outputs) == 1
-
-
-def test_top_products_by_country_mv_name_is_fully_qualified(registry) -> None:
-    """Should register the view with the expected fully-qualified name."""
-    _ADVANCED_PIPELINE.create_gold_top_products_by_country()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.name == "test_catalog.test_gold_schema.top_products_by_country_gold"
-
-
-def test_top_products_by_country_has_non_empty_comment(registry) -> None:
-    """Should attach a non-empty descriptive comment to the top products view."""
-    _ADVANCED_PIPELINE.create_gold_top_products_by_country()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    assert mv.comment is not None
-    assert len(mv.comment) > 0
-
-
-def test_top_products_by_country_registers_associated_flow(registry) -> None:
-    """Should register an associated flow targeting the top products view."""
-    _ADVANCED_PIPELINE.create_gold_top_products_by_country()
-
-    mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
-    flows = [f for f in registry.flows if f.target == mv.name]
-    assert len(flows) == 1

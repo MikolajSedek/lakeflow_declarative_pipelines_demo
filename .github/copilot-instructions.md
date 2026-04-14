@@ -78,6 +78,36 @@ covers:
 - Using **generators** for lazy evaluation of large sequences.
 - Testing pure functions with `@pytest.mark.parametrize` — no mocking needed.
 
+### Python Pytest Patterns (aiskillstore)
+
+All pytest tests must follow the patterns in:
+
+```
+.github/copilot/skills/python-pytest-patterns/SKILL.md
+```
+
+Highlights:
+- Consolidate tests that share the same assertion logic and differ only by data into `@pytest.mark.parametrize`.
+- Scope fixtures correctly: `session` for SparkSession, `module` for read-only DataFrames, `function` for anything mutable.
+- Apply custom markers (`spark`, `integration`) at the module level via `pytestmark`.
+- Use `pytest.raises(…, match=…)` to assert the specific exception message.
+- One logical assertion per test function; use section banners to group related tests.
+
+### Pytest Patterns (manutej)
+
+Additional pytest recipes and data-engineering–specific patterns are captured in:
+
+```
+.github/copilot/skills/pytest-patterns/SKILL.md
+```
+
+Highlights:
+- Parametrize module-level constant checks into a single `test_*_constant` function.
+- Parametrize over callables to verify that multiple factory functions register the correct output.
+- Mock Databricks-only APIs (`create_auto_cdc_flow`) with `patch.object(…, create=True)`.
+- Load notebook modules via `importlib.util` for structural testing without a Databricks Runtime.
+- Use `autouse=True` fixtures for side-effect cleanup (temp directories, mock resets).
+
 ---
 
 ## Consult Databricks Documentation When in Doubt
@@ -99,4 +129,5 @@ Do not guess or assume Databricks behaviour — look it up.
 - [ ] Code follows the Palantir PySpark Style Guide (`.github/copilot/skills/pyspark-style-guide/SKILL.md`)
 - [ ] Code follows PEP 8 (`.github/copilot/skills/pep8-style-guide/SKILL.md`)
 - [ ] Business logic functions are pure and tested with `@pytest.mark.parametrize` where applicable (`.github/copilot/skills/functional-programming/SKILL.md`)
+- [ ] Pytest tests follow the pytest patterns skills (`.github/copilot/skills/python-pytest-patterns/SKILL.md`, `.github/copilot/skills/pytest-patterns/SKILL.md`)
 - [ ] Any Databricks-specific behaviour was verified against the official docs

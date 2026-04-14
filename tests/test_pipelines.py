@@ -390,40 +390,44 @@ def test_table_pipeline_config_is_frozen() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bronze_table_name() -> None:
-    """Should generate a fully-qualified bronze table name with '_raw' suffix."""
-    catalog = "test_catalog"
-    schema = "test_bronze_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_bronze_schema.fake_orders_raw"
-    assert f"{catalog}.{schema}.{table_name}_raw" == expected
-
-
-def test_silver_table_name() -> None:
-    """Should generate a fully-qualified silver table name with '_staging' suffix."""
-    catalog = "test_catalog"
-    schema = "test_silver_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_silver_schema.fake_orders_staging"
-    assert f"{catalog}.{schema}.{table_name}_staging" == expected
-
-
-def test_gold_table_name() -> None:
-    """Should generate a fully-qualified gold table name with '_clean' suffix."""
-    catalog = "test_catalog"
-    schema = "test_gold_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_gold_schema.fake_orders_clean"
-    assert f"{catalog}.{schema}.{table_name}_clean" == expected
-
-
-def test_simple_table_name() -> None:
-    """Should generate a fully-qualified simple table name with '_simple_table' suffix."""
-    catalog = "test_catalog"
-    schema = "test_bronze_schema"
-    table_name = "fake_users"
-    expected = "test_catalog.test_bronze_schema.fake_users_simple_table"
-    assert f"{catalog}.{schema}.{table_name}_simple_table" == expected
+@pytest.mark.parametrize(
+    ("catalog", "schema", "table_name", "suffix", "expected"),
+    [
+        (
+            "test_catalog",
+            "test_bronze_schema",
+            "fake_orders",
+            "raw",
+            "test_catalog.test_bronze_schema.fake_orders_raw",
+        ),
+        (
+            "test_catalog",
+            "test_silver_schema",
+            "fake_orders",
+            "staging",
+            "test_catalog.test_silver_schema.fake_orders_staging",
+        ),
+        (
+            "test_catalog",
+            "test_gold_schema",
+            "fake_orders",
+            "clean",
+            "test_catalog.test_gold_schema.fake_orders_clean",
+        ),
+        (
+            "test_catalog",
+            "test_bronze_schema",
+            "fake_users",
+            "simple_table",
+            "test_catalog.test_bronze_schema.fake_users_simple_table",
+        ),
+    ],
+)
+def test_table_name_construction(
+    catalog: str, schema: str, table_name: str, suffix: str, expected: str
+) -> None:
+    """Should build a fully-qualified table name from catalog, schema, table name, and suffix."""
+    assert f"{catalog}.{schema}.{table_name}_{suffix}" == expected
 
 
 def test_aggregate_gold_table_name() -> None:

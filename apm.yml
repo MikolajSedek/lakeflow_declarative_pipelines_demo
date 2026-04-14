@@ -5,3 +5,5 @@ dependencies:
     - github/awesome-copilot/skills/pytest-coverage
     - .github/copilot/skills/pyspark-style-guide
     - .github/copilot/skills/functional-programming
+    - .github/copilot/skills/python-pytest-patterns
+    - .github/copilot/skills/pytest-patterns

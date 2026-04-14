@@ -7,9 +7,8 @@ every join produces a non-empty result.
 """
 
 import pytest
+from modules.data_generation import generate_list_of_rows
 from pyspark.sql import SparkSession
-
-from data_generation import generate_list_of_rows
 
 pytestmark = pytest.mark.spark
 

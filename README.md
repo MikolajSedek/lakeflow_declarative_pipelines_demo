@@ -67,12 +67,17 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 
 ```
 .
-├── 01.create_fake_data.py      # Databricks notebook – generates fake CSV data
-├── 02.simple_pipeline.py       # Databricks notebook – simple materialized views
-├── 03.advanced_pipeline.py     # Databricks notebook – full medallion pipeline
-├── 04.scd_genie_code_pipeline.py # Databricks notebook – SCD Type 2 historical tracking
-├── data_generation.py          # Pure-Python data generation helpers (no Spark dependency)
-├── transformations.py          # Pure PySpark transformation functions
+├── src/
+│   └── python/
+│       └── notebooks/
+│           ├── 01.create_fake_data.py          # Databricks notebook – generates fake CSV data
+│           ├── 02.simple_pipeline.py           # Databricks notebook – simple materialized views
+│           ├── 03.advanced_pipeline.py         # Databricks notebook – full medallion pipeline
+│           ├── 04.scd_genie_code_pipeline.py   # Databricks notebook – SCD Type 2 historical tracking
+│           └── modules/
+│               ├── __init__.py
+│               ├── data_generation.py          # Pure-Python data generation helpers (no Spark dependency)
+│               └── transformations.py          # Pure PySpark transformation functions
 ├── tests/
 │   ├── conftest.py                    # Shared fixtures (SparkSession, sample DataFrames)
 │   ├── test_data_generation.py        # Tests for data generation (pure Python, no Spark)
@@ -95,7 +100,7 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 
 ### 01 – Fake Data Generation
 
-**File:** `01.create_fake_data.py`
+**File:** `src/python/notebooks/01.create_fake_data.py`
 
 Generates synthetic datasets using the [mimesis](https://mimesis.name/) library and writes them as CSV files to Unity Catalog Volumes.
 
@@ -114,7 +119,7 @@ Generates synthetic datasets using the [mimesis](https://mimesis.name/) library 
 
 ### 02 – Simple Pipeline
 
-**File:** `02.simple_pipeline.py`
+**File:** `src/python/notebooks/02.simple_pipeline.py`
 
 A minimal Lakeflow Declarative Pipeline that reads CSV sources and creates **materialized views** using `@dp.materialized_view`.  This notebook demonstrates:
 
@@ -124,7 +129,7 @@ A minimal Lakeflow Declarative Pipeline that reads CSV sources and creates **mat
 
 ### 03 – Advanced Pipeline (Medallion)
 
-**File:** `03.advanced_pipeline.py`
+**File:** `src/python/notebooks/03.advanced_pipeline.py`
 
 The full **Bronze → Silver → Gold** medallion pipeline with:
 
@@ -145,7 +150,7 @@ The full **Bronze → Silver → Gold** medallion pipeline with:
 
 ### 04 – SCD Type 2 Pipeline
 
-**File:** `04.scd_genie_code_pipeline.py`
+**File:** `src/python/notebooks/04.scd_genie_code_pipeline.py`
 
 A specialized pipeline implementing **Slowly Changing Dimension Type 2** (SCD Type 2) for tracking historical changes in business entities:
 
@@ -176,7 +181,7 @@ A specialized pipeline implementing **Slowly Changing Dimension Type 2** (SCD Ty
 
 ## Library Modules
 
-### data\_generation.py
+### modules/data\_generation.py
 
 Pure-Python module with **no SparkSession dependency**.  Contains:
 
@@ -187,7 +192,7 @@ Design notes:
 - Threading/multiprocessing was benchmarked and found slower than sequential generation for the current scale (≤325K rows) due to GIL contention and serialization overhead.
 - Uses `mimesis` providers for realistic fake data and `pendulum` for ISO 8601 timestamps.
 
-### transformations.py
+### modules/transformations.py
 
 Pure PySpark transformation functions with **no framework dependencies** (no DLT/LDP globals):
 
@@ -255,7 +260,7 @@ The project enforces strict code quality through a comprehensive pre-commit conf
 |---------------|--------------------------------------------|------------------------------|
 | **Black**     | Uncompromising Python code formatting       | All Python files             |
 | **Ruff**      | Linting (E/F/W/I/B/S/UP/C4/SIM/T20/RUF/PT/PERF) + formatting | All Python files |
-| **mypy**      | Static type checking                       | `transformations.py`, `data_generation.py` |
+| **mypy**      | Static type checking                       | `src/python/notebooks/modules/transformations.py`, `src/python/notebooks/modules/data_generation.py` |
 | **Bandit**    | Security linting                           | Production modules           |
 | **pydocstyle**| Google-style docstring enforcement         | Production modules           |
 | **interrogate**| Docstring coverage (≥95%)                 | All modules                  |
@@ -339,10 +344,10 @@ CREATE SCHEMA IF NOT EXISTS test_catalog.test_gold_schema;
 ### Steps
 
 1. **Import** the repository into your Databricks workspace.
-2. **Run `01.create_fake_data.py`** as a notebook to generate CSV source data in the volume.
+2. **Run `src/python/notebooks/01.create_fake_data.py`** as a notebook to generate CSV source data in the volume.
 3. **Create an ETL Pipeline** (Lakeflow Declarative Pipeline) in the Databricks UI:
    - Set the default catalog to `test_catalog`.
-   - Add `03.advanced_pipeline.py` (or `02.simple_pipeline.py` or `04.scd_genie_code_pipeline.py`) as the pipeline source.
+   - Add `src/python/notebooks/03.advanced_pipeline.py` (or `src/python/notebooks/02.simple_pipeline.py` or `src/python/notebooks/04.scd_genie_code_pipeline.py`) as the pipeline source.
 4. **Start** the pipeline – Databricks handles orchestration, dependency resolution, and incremental processing automatically.
 
 > **Note:** `dp.create_auto_cdc_flow` is a Databricks-only API and is not available in the open-source `pyspark.pipelines` module.

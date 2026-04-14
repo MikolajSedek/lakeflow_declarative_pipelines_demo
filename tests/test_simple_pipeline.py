@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pyspark.pipelines.output import MaterializedView
 
-_PIPELINE_PATH = Path(__file__).parent.parent / "02.simple_pipeline.py"
+_PIPELINE_PATH = Path(__file__).parent.parent / "src/python/notebooks/02.simple_pipeline.py"
 
 
 def _load_simple_pipeline_module():

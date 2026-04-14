@@ -10,9 +10,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from loguru import logger
 from mimesis.enums import Locale
+from modules.data_generation import FrameConfig, generate_list_of_rows
 from pyspark.sql import DataFrame
-
-from data_generation import FrameConfig, generate_list_of_rows
 
 NUM_USERS = 20000
 NUM_PRODUCTS = 15000

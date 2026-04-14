@@ -3,17 +3,16 @@
 from functools import reduce
 
 import pyspark.sql.functions as F
-from pydantic.dataclasses import dataclass
-from pyspark import pipelines as dp
-from pyspark.sql import DataFrame
-
-from transformations import (
+from modules.transformations import (
     add_load_timestamp,
     anonymize_sensitive_data,
     extract_file_name_from_metadata,
     lower_all_column_names,
     remove_nonsense_columns,
 )
+from pydantic.dataclasses import dataclass
+from pyspark import pipelines as dp
+from pyspark.sql import DataFrame
 
 # configuration
 

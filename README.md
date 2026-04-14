@@ -306,13 +306,12 @@ The **same** `ci.yml` workflow contains a `deploy` job that runs **only after `l
 | `test` | `dev`   | Deploys all bundle resources with development mode (name-prefixed) |
 | `main` | `prod`  | Deploys all bundle resources in production mode                   |
 
-The deploy job authenticates using a service principal via OAuth M2M.  Configure the following GitHub repository secrets before enabling automated deployments:
+The deploy job authenticates using a Personal Access Token (PAT).  Configure the following GitHub repository secrets before enabling automated deployments:
 
-| Secret                    | Description                                                         |
-|---------------------------|---------------------------------------------------------------------|
-| `DATABRICKS_HOST`         | Workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
-| `DATABRICKS_CLIENT_ID`    | Service principal application (client) ID                          |
-| `DATABRICKS_CLIENT_SECRET`| Service principal client secret                                    |
+| Secret             | Description                                                              |
+|--------------------|--------------------------------------------------------------------------|
+| `DATABRICKS_HOST`  | Workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
+| `DATABRICKS_TOKEN` | Databricks Personal Access Token (PAT)                                   |
 
 See [Automated deployment via GitHub Actions](#automated-deployment-via-github-actions) for step-by-step setup.
 
@@ -438,22 +437,22 @@ databricks configure --host https://<your-workspace-url>.azuredatabricks.net \
 # Paste your PAT when prompted.
 ```
 
-#### Option C – Service Principal (OAuth M2M, for CI/CD)
+#### Option C – Personal Access Token (PAT, for CI/CD)
 
 This is what the GitHub Actions deploy workflow uses.  Set the following environment variables before running CLI commands:
 
 ```bash
 export DATABRICKS_HOST=https://<your-workspace-url>.azuredatabricks.net
-export DATABRICKS_CLIENT_ID=<service-principal-client-id>
-export DATABRICKS_CLIENT_SECRET=<service-principal-client-secret>
+export DATABRICKS_TOKEN=<your-personal-access-token>
 ```
 
-To create a service principal on **Databricks Free Edition**:
-1. Go to **Settings → Identity & access → Service principals → Add service principal**.
-2. Assign the service principal the **Contributor** role on the workspace.
-3. Under the service principal, go to **Secrets → Generate secret** and copy the client ID and secret.
+To generate a Personal Access Token on **Databricks Free Edition**:
+1. In your Databricks workspace, click your username in the top bar and select **Settings**.
+2. Click **Developer → Manage** (next to **Access tokens**).
+3. Click **Generate new token**, enter a comment and lifetime, then click **Generate**.
+4. Copy the token immediately — it is only shown once.
 
-For a full reference, see [Authentication for the Databricks CLI](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/authentication).
+For a full reference, see [Databricks personal access tokens](https://docs.databricks.com/aws/en/dev-tools/auth/pat).
 
 ---
 
@@ -467,7 +466,7 @@ The `databricks.yml` at the repository root defines three workflows and two pipe
 |---|---|---|---|
 | `create_fake_data_workflow` | Job | `01.create_fake_data_workflow` | Runs the fake-data generation notebook on serverless compute |
 | `run_simple_lakeflow_pipeline_workflow` | Job | `02.run_simple_lakeflow_pipeline_workflow` | Triggers the simple pipeline |
-| `run_advanced_scd_pipeline_workflow` | Job | `03.run_advanced_scd_pipeline_notebook` | Triggers the advanced + SCD pipeline |
+| `run_advanced_scd_pipeline_workflow` | Job | `03.run_advanced_scd_pipeline_workflow` | Triggers the advanced + SCD pipeline |
 | `simple_pipeline` | Pipeline | `02.simple_lakeflow_pipeline` | Materialized views from CSV sources |
 | `advanced_scd_pipeline` | Pipeline | `03.advanced_scd_lakeflow_pipeline` | Full medallion + SCD Type 2 pipeline |
 
@@ -515,14 +514,13 @@ databricks bundle deploy --target prod --auto-approve
 
 **Setup**
 
-1. Create a **service principal** in your workspace (see [Option C](#option-c--service-principal-oauth-m2m-for-cicd) above).
-2. Add three secrets to your GitHub repository (**Settings → Secrets and variables → Actions → New repository secret**):
+1. Generate a **Personal Access Token** in your workspace (see [Option C](#option-c--personal-access-token-pat-for-cicd) above).
+2. Add two secrets to your GitHub repository (**Settings → Secrets and variables → Actions → New repository secret**):
 
-| Secret name               | Value                                                                    |
-|---------------------------|--------------------------------------------------------------------------|
-| `DATABRICKS_HOST`         | Your workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
-| `DATABRICKS_CLIENT_ID`    | Service principal application (client) ID                               |
-| `DATABRICKS_CLIENT_SECRET`| Service principal client secret                                         |
+| Secret name        | Value                                                                    |
+|--------------------|--------------------------------------------------------------------------|
+| `DATABRICKS_HOST`  | Your workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
+| `DATABRICKS_TOKEN` | Databricks Personal Access Token (PAT)                                   |
 
 3. Merge a branch into `test` or `main`.  The deploy workflow will run automatically.
 

@@ -83,10 +83,12 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 │           └── modules/
 │               ├── __init__.py
 │               ├── data_generation.py          # Pure-Python data generation helpers (no Spark dependency)
+│               ├── ddl_helpers.py              # Pure DDL SQL-builder helpers (no SparkSession dependency)
 │               └── transformations.py          # Pure PySpark transformation functions
 ├── tests/
 │   ├── conftest.py                    # Shared fixtures (SparkSession, sample DataFrames)
 │   ├── test_data_generation.py        # Tests for data generation (pure Python, no Spark)
+│   ├── test_ddl_helpers.py            # Tests for DDL builder helpers (pure Python, no Spark)
 │   ├── test_parallel_writes.py        # Tests for concurrent DataFrame writes (Spark)
 │   ├── test_pipelines.py              # Tests for pipeline decorator registration (no Spark)
 │   ├── test_simple_pipeline.py        # Tests for simple materialized view pipeline (no Spark)
@@ -124,6 +126,7 @@ Generates synthetic datasets using the [mimesis](https://mimesis.name/) library 
 - **Joinable foreign keys:** Orders reference valid `userid` (→ `fake_users.id`) and `productid` (→ `fake_products.id`) values, enabling realistic multi-table joins in the Gold layer.
 - **Varied timestamps:** Order timestamps are spread over a 30-day window so that SCD Type 2 tracking and temporal analysis produce meaningful results.
 - Each dataset includes a `nonsense_column` to demonstrate column pruning.
+- **Automatic DDL provisioning:** The notebook calls `run_setup_ddl(spark)` on startup, which uses `modules.ddl_helpers.build_setup_ddl_statements` to create the required catalog, schemas, and volume before writing data.  Identifier names are validated against a strict regex to prevent SQL injection.
 - Writes use `ThreadPoolExecutor` for concurrent I/O – Spark write actions release the GIL, so threads provide a real speedup over sequential writes.
 
 ### 02 – Simple Pipeline
@@ -201,6 +204,19 @@ Design notes:
 - Threading/multiprocessing was benchmarked and found slower than sequential generation for the current scale (≤325K rows) due to GIL contention and serialization overhead.
 - Uses `mimesis` providers for realistic fake data and `pendulum` for ISO 8601 timestamps.
 
+### modules/ddl\_helpers.py
+
+Pure-Python module with **no SparkSession dependency**.  Provides SQL-injection-safe DDL builders for Databricks catalog provisioning:
+
+| Function                       | Description                                                                            |
+|--------------------------------|----------------------------------------------------------------------------------------|
+| `build_create_catalog_sql`     | Returns a `CREATE CATALOG IF NOT EXISTS` DDL string                                    |
+| `build_create_schema_sql`      | Returns a `CREATE SCHEMA IF NOT EXISTS` DDL string                                     |
+| `build_create_volume_sql`      | Returns a `CREATE VOLUME IF NOT EXISTS` DDL string                                     |
+| `build_setup_ddl_statements`   | Returns the full ordered tuple of DDL statements needed to provision the demo environment |
+
+All identifier names are validated against a strict regex (`[A-Za-z_][A-Za-z0-9_]*`) before being embedded in SQL, preventing SQL injection.  The side-effect runner (`run_setup_ddl` in `01.create_fake_data.py`) is kept separate so the builders remain pure and testable.
+
 ### modules/transformations.py
 
 Pure PySpark transformation functions with **no framework dependencies** (no DLT/LDP globals):
@@ -249,6 +265,7 @@ pytest tests/ -m spark -v
 | Test Module                    | Tests | What's Covered                                                  |
 |--------------------------------|-------|-----------------------------------------------------------------|
 | `test_data_generation`         | 21    | Row counts, field names, value ranges, input validation, FrameConfig, foreign key ranges |
+| `test_ddl_helpers`             | 51    | DDL SQL builder validation, SQL-injection protection, catalog/schema/volume DDL generation, `build_setup_ddl_statements` integration, `run_setup_ddl` side-effect wrapper |
 | `test_transformations`         | 24    | Column addition/removal, lowercasing, hashing, edge cases, defaults, validation |
 | `test_parallel_writes`         | 13    | Concurrent writes, append semantics, error propagation, edge cases |
 | `test_pipelines`               | 31    | Decorator registration, flow creation, name inference, config freezing |
@@ -329,6 +346,13 @@ version: 0.1.0
 dependencies:
   apm:
     - github/awesome-copilot/skills/pytest-coverage
+    - .github/copilot/skills/pytest
+    - .github/copilot/skills/pyspark-style-guide
+    - .github/copilot/skills/functional-programming
+    - .github/copilot/skills/databricks-docs
+    - .github/copilot/skills/databricks-jobs
+    - .github/copilot/skills/databricks-bundles
+    - .github/copilot/skills/databricks-spark-declarative-pipelines
 ```
 
 ### Installed Skills
@@ -336,11 +360,13 @@ dependencies:
 | Skill | Description |
 |-------|-------------|
 | [`pytest-coverage`](https://github.com/github/awesome-copilot/blob/main/skills/pytest-coverage/SKILL.md) | Run pytest with coverage, identify uncovered lines, and iteratively improve coverage to 100% |
+| [`pytest`](.github/copilot/skills/pytest/SKILL.md) | Run pytest, interpret failures, and fix tests following project conventions |
 | [`pyspark-style-guide`](.github/copilot/skills/pyspark-style-guide/SKILL.md) | Write idiomatic, performant PySpark code following the [Palantir PySpark Style Guide](https://github.com/palantir/pyspark-style-guide) |
-| [`databricks-docs`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-docs) | Query and reason over official Databricks documentation |
-| [`databricks-jobs`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-jobs) | Create, manage, and debug Databricks Jobs |
-| [`databricks-bundles`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-bundles) | Scaffold, validate, and deploy Databricks Asset Bundles |
-| [`databricks-spark-declarative-pipelines`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-spark-declarative-pipelines) | Author and manage Lakeflow Declarative Pipelines |
+| [`functional-programming`](.github/copilot/skills/functional-programming/SKILL.md) | Apply functional programming principles (pure functions, immutable configs, composable pipelines) in Python |
+| [`databricks-docs`](.github/copilot/skills/databricks-docs/SKILL.md) | Query and reason over official Databricks documentation |
+| [`databricks-jobs`](.github/copilot/skills/databricks-jobs/SKILL.md) | Create, manage, and debug Databricks Jobs |
+| [`databricks-bundles`](.github/copilot/skills/databricks-bundles/SKILL.md) | Scaffold, validate, and deploy Databricks Asset Bundles |
+| [`databricks-spark-declarative-pipelines`](.github/copilot/skills/databricks-spark-declarative-pipelines/SKILL.md) | Author and manage Lakeflow Declarative Pipelines |
 
 ### Setup
 
@@ -354,7 +380,7 @@ curl -sSL https://aka.ms/apm-unix | sh
 apm install
 ```
 
-After running `apm install`, your AI coding agent (GitHub Copilot, Claude Code, Cursor, etc.) will automatically have the `pytest-coverage` skill available, enabling it to run coverage analysis and improve test coverage.
+After running `apm install`, your AI coding agent (GitHub Copilot, Claude Code, Cursor, etc.) will automatically have all declared skills available, enabling coverage analysis, PySpark style guidance, functional programming best practices, and Databricks-specific assistance.
 
 ---
 
@@ -365,7 +391,7 @@ The project ships with a `databricks.yml` file that defines all resources as a *
 ### Prerequisites
 
 - **Databricks Free Edition** workspace with **Unity Catalog** enabled
-- Create the required catalog, schemas, and volume once (SQL console or notebook):
+- The required catalog, schemas, and volume are **provisioned automatically** when `01.create_fake_data.py` runs: it calls `run_setup_ddl(spark)`, which uses `modules.ddl_helpers.build_setup_ddl_statements` to execute the DDL below.  You can also run these statements manually from the SQL console if you prefer:
 
 ```sql
 CREATE CATALOG IF NOT EXISTS test_catalog;

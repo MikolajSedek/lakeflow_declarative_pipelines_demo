@@ -3,5 +3,6 @@ version: 0.1.0
 dependencies:
   apm:
     - github/awesome-copilot/skills/pytest-coverage
+    - .github/copilot/skills/pytest
     - .github/copilot/skills/pyspark-style-guide
     - .github/copilot/skills/functional-programming

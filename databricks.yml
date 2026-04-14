@@ -1,0 +1,99 @@
+# Databricks Asset Bundle configuration
+# https://learn.microsoft.com/en-us/azure/databricks/dev-tools/bundles/
+#
+# Deploy:  databricks bundle deploy
+# Run:     databricks bundle run <resource-name>
+
+bundle:
+  name: lakeflow-declarative-pipelines-demo
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: test_catalog
+  schema:
+    description: Default schema for source data
+    default: test_schema
+  volume:
+    description: Volume name for CSV source files
+    default: test_volume
+  bronze_schema:
+    description: Bronze layer schema
+    default: test_bronze_schema
+  silver_schema:
+    description: Silver layer schema
+    default: test_silver_schema
+  gold_schema:
+    description: Gold layer schema
+    default: test_gold_schema
+
+# ── Deployment targets ───────────────────────────────────────────────────────
+targets:
+  dev:
+    mode: development
+    default: true
+
+  prod:
+    mode: production
+
+# ── Resources ────────────────────────────────────────────────────────────────
+resources:
+
+  # ── Workflows (Databricks Jobs) ──────────────────────────────────────────
+  jobs:
+
+    # 01 – Generate fake CSV data and write to Unity Catalog Volume
+    create_fake_data_workflow:
+      name: "01.create_fake_data_workflow"
+      tasks:
+        - task_key: create_fake_data
+          notebook_task:
+            # Path resolved to the deployed bundle workspace directory
+            notebook_path: ${workspace.file_path}/src/python/notebooks/01.create_fake_data.py
+            source: WORKSPACE
+          # No cluster configuration → uses serverless compute
+
+    # 02 – Run the simple Lakeflow Declarative Pipeline
+    run_simple_lakeflow_pipeline_workflow:
+      name: "02.run_simple_lakeflow_pipeline_workflow"
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.simple_pipeline.id}
+          # Pipeline tasks run on serverless compute automatically
+
+    # 03 – Run the advanced + SCD pipeline
+    run_advanced_scd_pipeline_workflow:
+      name: "03.run_advanced_scd_pipeline_notebook"
+      tasks:
+        - task_key: run_advanced_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.advanced_scd_pipeline.id}
+          # Pipeline tasks run on serverless compute automatically
+
+  # ── Lakeflow Declarative Pipelines ───────────────────────────────────────
+  pipelines:
+
+    # 02 – Simple pipeline: materialized views from CSV sources
+    simple_pipeline:
+      name: "02.simple_lakeflow_pipeline"
+      serverless: true
+      catalog: ${var.catalog}
+      target: ${var.bronze_schema}
+      channel: CURRENT
+      libraries:
+        - notebook:
+            path: src/python/notebooks/02.simple_pipeline.py
+
+    # 03+04 – Advanced medallion pipeline (Bronze→Silver→Gold) + SCD Type 2
+    advanced_scd_pipeline:
+      name: "03.advanced_scd_lakeflow_pipeline"
+      serverless: true
+      catalog: ${var.catalog}
+      target: ${var.bronze_schema}
+      channel: CURRENT
+      libraries:
+        - notebook:
+            path: src/python/notebooks/03.advanced_pipeline.py
+        - notebook:
+            path: src/python/notebooks/04.scd_genie_code_pipeline.py

@@ -6,3 +6,7 @@ dependencies:
     - .github/copilot/skills/pytest
     - .github/copilot/skills/pyspark-style-guide
     - .github/copilot/skills/functional-programming
+    - databricks-solutions/ai-dev-kit/databricks-skills/databricks-docs
+    - databricks-solutions/ai-dev-kit/databricks-skills/databricks-jobs
+    - databricks-solutions/ai-dev-kit/databricks-skills/databricks-bundles
+    - databricks-solutions/ai-dev-kit/databricks-skills/databricks-spark-declarative-pipelines

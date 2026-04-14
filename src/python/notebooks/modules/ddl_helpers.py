@@ -136,5 +136,5 @@ def build_setup_ddl_statements(
         build_create_catalog_sql(catalog),
         build_create_schema_sql(catalog, schema),
         build_create_volume_sql(catalog, schema, volume),
-        *[build_create_schema_sql(catalog, s) for s in extra_schemas],
+        *(build_create_schema_sql(catalog, s) for s in extra_schemas),
     )

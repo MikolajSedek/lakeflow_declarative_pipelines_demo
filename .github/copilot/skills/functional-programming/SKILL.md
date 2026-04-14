@@ -20,7 +20,7 @@ Python is a multi-paradigm language: apply FP principles where they improve clar
 
 ## Pure Functions
 
-A **pure function** always returns the same output for the same input and produces no side effects (no mutations of external state, no I/O, no global variable access).
+A **pure function** always returns the same output for the same input and produces no side effects (no mutations of external state, no I/O, no access to mutable global or external state).
 
 ```python
 # bad — reads and mutates external state
@@ -59,11 +59,11 @@ Prefer immutable data to reduce the risk of accidental mutation bugs, especially
 
 ### Built-in immutable types
 
-| Mutable       | Prefer immutable alternative          |
-|---------------|---------------------------------------|
-| `list`        | `tuple`                               |
-| `dict`        | `types.MappingProxyType` / `NamedTuple` |
-| `set`         | `frozenset`                           |
+| Mutable       | Prefer immutable alternative |
+|---------------|------------------------------|
+| `list`        | `tuple`                      |
+| `dict`        | `NamedTuple`                 |
+| `set`         | `frozenset`                  |
 
 ```python
 # bad — list can be mutated anywhere
@@ -192,7 +192,7 @@ product = reduce(lambda a, b: a * b, numbers)  # 120
 
 | Utility                 | Purpose                                                      |
 |-------------------------|--------------------------------------------------------------|
-| `functools.partial`     | Fix some arguments of a function; create specialised callables |
+| `functools.partial`     | Fix some arguments of a function; create specialized callables |
 | `functools.lru_cache`   | Memoize pure functions; avoid repeated expensive computation  |
 | `functools.reduce`      | Fold a sequence into a single value                          |
 | `functools.wraps`       | Preserve wrapped function metadata inside decorators         |
@@ -291,9 +291,9 @@ def transform(items: Iterable[int]) -> Iterable[int]:
 Python does **not** optimize tail calls. Keep recursion for naturally hierarchical problems (trees, nested structures) where the depth is bounded and shallow (well below the default 1 000-frame limit).
 
 ```python
-from typing import List
+from typing import Any
 
-def flatten(nested: list) -> List:
+def flatten(nested: list[Any]) -> list[Any]:
     """Recursively flatten a nested list."""
     result = []
     for item in nested:
@@ -322,7 +322,7 @@ def normalize_text(text: str) -> str:
     return text.strip().lower()
 
 
-# tests — parametrised for completeness
+# tests — parameterized for completeness
 import pytest
 
 @pytest.mark.parametrize('value, lo, hi, expected', [
@@ -386,6 +386,11 @@ def process(df, threshold=0.95, output='silver.clean'):
 class ProcessConfig(NamedTuple):
     threshold: float
     output_table: str
+
+
+def process(df, cfg: ProcessConfig) -> None:
+    ...
+
 
 cfg = ProcessConfig(threshold=0.95, output_table='silver.clean')
 process(df, cfg)

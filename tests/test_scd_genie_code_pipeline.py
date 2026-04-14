@@ -49,7 +49,7 @@ def mock_cdc():
 
 
 @pytest.mark.parametrize(
-    "attr,expected",
+    ("attr", "expected"),
     [
         ("SOURCE_TABLE", "test_catalog.test_silver_schema.fake_orders_staging"),
         ("TARGET_CATALOG", "test_catalog"),
@@ -71,27 +71,10 @@ def test_pipeline_constant(attr: str, expected: object) -> None:
 
 
 def test_target_table_full_name() -> None:
-    """Should produce a three-part catalog.schema.table name."""
+    """Should assemble a valid three-part catalog.schema.table name from the module constants."""
     expected = "test_catalog.test_gold_schema.fake_orders_scd2"
     actual = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
     assert actual == expected
-
-
-def test_target_table_name_has_three_parts() -> None:
-    """Should contain exactly three dot-separated segments."""
-    full_name = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
-    assert len(full_name.split(".")) == 3
-
-
-def test_source_table_references_silver_schema() -> None:
-    """Should read from silver_schema, not bronze or gold."""
-    assert "silver_schema" in _PIPELINE.SOURCE_TABLE
-
-
-def test_target_references_gold_schema() -> None:
-    """Should write to gold_schema."""
-    full_name = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
-    assert "gold_schema" in full_name
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +134,7 @@ def test_cdc_flow_is_called_once(registry, mock_cdc) -> None:
 
 
 @pytest.mark.parametrize(
-    "kwarg,expected",
+    ("kwarg", "expected"),
     [
         ("target", "test_catalog.test_gold_schema.fake_orders_scd2"),
         ("source", "test_catalog.test_silver_schema.fake_orders_staging"),

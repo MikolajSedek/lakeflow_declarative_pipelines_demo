@@ -61,6 +61,23 @@ A concise reference skill file is available at:
 The project uses **ruff** for automated formatting and linting (configured in `pyproject.toml`).
 Running `pre-commit run --all-files` will apply ruff automatically.
 
+### Functional Programming Style Guide
+
+All Python business logic should follow functional programming principles where appropriate.
+The skill file at:
+
+```
+.github/copilot/skills/functional-programming/SKILL.md
+```
+
+covers:
+- Writing **pure functions** (no side effects, deterministic output).
+- Using **immutable configs** via `NamedTuple` or `@dataclass(frozen=True)`.
+- Applying **higher-order functions**, `functools.partial`, and `functools.lru_cache`.
+- Building **composable pipelines** with small, named, testable functions.
+- Using **generators** for lazy evaluation of large sequences.
+- Testing pure functions with `@pytest.mark.parametrize` — no mocking needed.
+
 ---
 
 ## Consult Databricks Documentation When in Doubt
@@ -81,4 +98,5 @@ Do not guess or assume Databricks behaviour — look it up.
 - [ ] `pytest tests/ -m spark -v` passes with zero failures
 - [ ] Code follows the Palantir PySpark Style Guide (`.github/copilot/skills/pyspark-style-guide/SKILL.md`)
 - [ ] Code follows PEP 8 (`.github/copilot/skills/pep8-style-guide/SKILL.md`)
+- [ ] Business logic functions are pure and tested with `@pytest.mark.parametrize` where applicable (`.github/copilot/skills/functional-programming/SKILL.md`)
 - [ ] Any Databricks-specific behaviour was verified against the official docs

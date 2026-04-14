@@ -1,5 +1,5 @@
 # Databricks notebook source
-"""Exploration notebook – ad-hoc queries against pipeline output tables.
+"""Exploration notebook - ad-hoc queries against pipeline output tables.
 
 Use this notebook for interactive investigation of tables produced by a
 Lakeflow Spark Declarative Pipeline.  It is intentionally kept separate
@@ -68,20 +68,17 @@ spark.table("test_catalog.test_bronze_schema.fake_orders").printSchema()
 
 # COMMAND ----------
 
-display(
-    spark.sql(
-        """
-        SELECT
-            o.userid,
-            u.name,
-            COUNT(*)        AS order_count,
-            SUM(o.amount)   AS total_spent
-        FROM test_catalog.test_bronze_schema.fake_orders AS o
-        JOIN test_catalog.test_bronze_schema.fake_users  AS u
-          ON o.userid = u.userid
-        GROUP BY o.userid, u.name
-        ORDER BY total_spent DESC
-        LIMIT 10
-        """
-    )
-)
+sql_query = """
+    SELECT
+        o.userid,
+        u.name,
+        COUNT(*) AS order_count,
+        SUM(o.amount) AS total_spent
+    FROM test_catalog.test_bronze_schema.fake_orders AS o
+    JOIN test_catalog.test_bronze_schema.fake_users AS u
+      ON o.userid = u.userid
+    GROUP BY o.userid, u.name
+    ORDER BY total_spent DESC
+    LIMIT 10
+"""
+display(spark.sql(sql_query))

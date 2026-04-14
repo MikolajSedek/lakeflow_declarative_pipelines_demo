@@ -71,6 +71,8 @@ ignore = [
 "src/python/notebooks/01.create_fake_data.py" = ["F821"]
 "src/python/notebooks/02.simple_pipeline.py" = ["F821"]
 "src/python/notebooks/03.advanced_pipeline.py" = ["F821"]
+# Skill example notebook: spark/display are Databricks injected globals; print is intentional display output
+".github/copilot/skills/databricks-spark-declarative-pipelines/scripts/exploration_notebook.py" = ["F821", "T201"]
 
 [tool.mypy]
 python_version = "3.10"

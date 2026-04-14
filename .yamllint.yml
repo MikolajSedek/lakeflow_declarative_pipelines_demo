@@ -1,0 +1,43 @@
+# yamllint configuration
+# https://yamllint.readthedocs.io/en/stable/configuration.html
+#
+# Extends the default ruleset with project-specific relaxations:
+#   - 120-char line limit (workflow files and bundle configs tend to be wide)
+#   - truthy rule allows GitHub Actions special values (on/off/yes/no)
+#   - comments rule: consistent single-space after '#'
+
+extends: default
+
+rules:
+  # ── line length ──────────────────────────────────────────────────────────
+  line-length:
+    max: 120
+    level: warning
+
+  # ── truthy values ─────────────────────────────────────────────────────────
+  # GitHub Actions uses "on:" as a top-level key (quoted in strict YAML but
+  # widely accepted bare). Allow the full set of truthy variants.
+  truthy:
+    allowed-values: ["true", "false", "yes", "no", "on", "off"]
+    check-keys: false   # Don't flag GitHub Actions "on:" event key
+
+  # ── comments ─────────────────────────────────────────────────────────────
+  comments:
+    min-spaces-from-content: 1   # Allow inline comments with single space
+
+  # ── braces ───────────────────────────────────────────────────────────────
+  # Note: yamllint's braces rule validates braces in flow mappings, not
+  # Databricks ${var.name} interpolation (which lives inside YAML string values).
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # ── indentation ──────────────────────────────────────────────────────────
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false  # Allow un-indented shell heredocs
+
+  # ── document start / end markers ─────────────────────────────────────────
+  document-start: disable   # Don't require '---' at start of every file
+  document-end: disable

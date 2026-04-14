@@ -47,29 +47,28 @@ resources:
       name: "01.create_fake_data_workflow"
       tasks:
         - task_key: create_fake_data
-          notebook_task:
-            # Path resolved to the deployed bundle workspace directory
-            notebook_path: ${workspace.file_path}/src/python/notebooks/01.create_fake_data.py
-            source: WORKSPACE
+          # Relative path from bundle root; DAB resolves to the deployed workspace path
           # No cluster configuration → uses serverless compute
+          notebook_task:
+            notebook_path: ./src/python/notebooks/01.create_fake_data.py
 
     # 02 – Run the simple Lakeflow Declarative Pipeline
     run_simple_lakeflow_pipeline_workflow:
       name: "02.run_simple_lakeflow_pipeline_workflow"
       tasks:
         - task_key: run_pipeline
+          # Pipeline tasks run on serverless compute automatically
           pipeline_task:
             pipeline_id: ${resources.pipelines.simple_pipeline.id}
-          # Pipeline tasks run on serverless compute automatically
 
     # 03 – Run the advanced + SCD pipeline
     run_advanced_scd_pipeline_workflow:
       name: "03.run_advanced_scd_pipeline_notebook"
       tasks:
         - task_key: run_advanced_pipeline
+          # Pipeline tasks run on serverless compute automatically
           pipeline_task:
             pipeline_id: ${resources.pipelines.advanced_scd_pipeline.id}
-          # Pipeline tasks run on serverless compute automatically
 
   # ── Lakeflow Declarative Pipelines ───────────────────────────────────────
   pipelines:
@@ -79,8 +78,9 @@ resources:
       name: "02.simple_lakeflow_pipeline"
       serverless: true
       catalog: ${var.catalog}
-      target: ${var.bronze_schema}
-      channel: CURRENT
+      # 'schema' is the current field ('target' is deprecated)
+      schema: ${var.bronze_schema}
+      channel: current
       libraries:
         - notebook:
             path: src/python/notebooks/02.simple_pipeline.py
@@ -90,8 +90,9 @@ resources:
       name: "03.advanced_scd_lakeflow_pipeline"
       serverless: true
       catalog: ${var.catalog}
-      target: ${var.bronze_schema}
-      channel: CURRENT
+      # 'schema' is the current field ('target' is deprecated)
+      schema: ${var.bronze_schema}
+      channel: current
       libraries:
         - notebook:
             path: src/python/notebooks/03.advanced_pipeline.py

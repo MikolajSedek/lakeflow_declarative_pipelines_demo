@@ -45,7 +45,7 @@ resources:
 
     # 03 – Run the advanced + SCD pipeline
     run_advanced_scd_pipeline_workflow:
-      name: "03.run_advanced_scd_pipeline_notebook"
+      name: "03.run_advanced_scd_pipeline_workflow"
       tasks:
         - task_key: run_advanced_pipeline
           # Pipeline tasks run on serverless compute automatically

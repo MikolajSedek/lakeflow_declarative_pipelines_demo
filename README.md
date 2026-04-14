@@ -94,7 +94,7 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 │   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline (no Spark)
 │   ├── test_joinability.py            # Tests for join correctness and aggregation (Spark)
 │   └── test_transformations.py        # Tests for transformation functions (Spark)
-├── databricks.yml              # Databricks Asset Bundle – workflows, pipelines, variables, targets
+├── databricks.yml              # Databricks Asset Bundle – workflows, pipelines, targets
 ├── pyproject.toml              # Project metadata, tool configuration
 ├── requirements.txt            # Runtime + test dependencies
 ├── apm.yml                     # Agent Package Manager skill declarations

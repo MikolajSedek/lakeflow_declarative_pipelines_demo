@@ -15,7 +15,7 @@ resources:
 
       # Target catalog and schema
       catalog: ${var.catalog}
-      target: ${var.schema}
+      schema: ${var.schema}
 
       # Pipeline libraries
       libraries:

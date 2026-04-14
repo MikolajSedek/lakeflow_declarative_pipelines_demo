@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  # Run on every branch push (includes main/test so the deploy job can trigger)
+  # Run on every push, including branch and tag pushes (includes main/test so the deploy job can trigger)
   push:
   # Run on PRs targeting main/test for required status checks
   pull_request:
@@ -79,6 +79,9 @@ jobs:
     name: Deploy Databricks Asset Bundle
     needs: [lint, test-pure, test-spark]
     if: "github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test')"
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-deploy
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

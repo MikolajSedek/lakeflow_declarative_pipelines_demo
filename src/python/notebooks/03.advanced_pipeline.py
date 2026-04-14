@@ -1,3 +1,4 @@
+# Databricks notebook source
 """Advanced Lakeflow Declarative Pipeline with bronze/silver/gold medallion architecture."""
 
 from functools import reduce

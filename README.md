@@ -25,6 +25,12 @@ End-to-end demonstration of **Databricks Lakeflow Declarative Pipelines** (the s
 - [CI / CD](#ci--cd)
 - [Agent Package Manager (APM)](#agent-package-manager-apm)
 - [Databricks Deployment](#databricks-deployment)
+  - [Prerequisites](#prerequisites)
+  - [Install the Databricks CLI](#install-the-databricks-cli)
+  - [Authenticate with Databricks Free Edition](#authenticate-with-databricks-free-edition)
+  - [Deploy with Databricks Asset Bundles from a local IDE](#deploy-with-databricks-asset-bundles-from-a-local-ide)
+  - [Automated deployment via GitHub Actions](#automated-deployment-via-github-actions)
+  - [Manual notebook-based deployment (no CLI)](#manual-notebook-based-deployment-no-cli)
 - [Key API Reference](#key-api-reference)
 - [References & Further Reading](#references--further-reading)
 
@@ -88,10 +94,13 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 │   ├── test_scd_genie_code_pipeline.py # Tests for SCD Type 2 pipeline (no Spark)
 │   ├── test_joinability.py            # Tests for join correctness and aggregation (Spark)
 │   └── test_transformations.py        # Tests for transformation functions (Spark)
+├── databricks.yml              # Databricks Asset Bundle – workflows, pipelines, targets
 ├── pyproject.toml              # Project metadata, tool configuration
 ├── requirements.txt            # Runtime + test dependencies
+├── apm.yml                     # Agent Package Manager skill declarations
 ├── .pre-commit-config.yaml     # Pre-commit hook definitions
-└── .github/workflows/ci.yml   # GitHub Actions CI pipeline
+└── .github/workflows/
+    └── ci.yml                  # GitHub Actions CI/CD – lint + unit tests on feature branches / PRs; deploy job handles bundle deployment on push to main / test
 ```
 
 ---
@@ -276,15 +285,35 @@ pre-commit run --all-files
 
 ## CI / CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every **push to feature branches** and on every **pull request targeting `main` or `test`**:
+### Continuous Integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on **every push** (all branches) and on every **pull request targeting `main` or `test`**:
 
 | Job          | What It Does                               | Timeout |
 |--------------|--------------------------------------------|---------|
-| `lint`       | Runs all pre-commit hooks                  | 10 min  |
+| `lint`       | Runs all pre-commit hooks (incl. yamllint) | 10 min  |
 | `test-pure`  | Pure-Python tests (`-m "not spark"`)       | 10 min  |
 | `test-spark` | PySpark tests (`-m spark`)                 | 15 min  |
 
 All jobs use pip caching for fast dependency installation.
+
+### Continuous Deployment
+
+The **same** `ci.yml` workflow contains a `deploy` job that runs **only after `lint`, `test-pure`, and `test-spark` all pass** and only on direct pushes to `main` or `test`:
+
+| Branch | Target  | What Happens                                                      |
+|--------|---------|-------------------------------------------------------------------|
+| `test` | `dev`   | Deploys all bundle resources with development mode (name-prefixed) |
+| `main` | `prod`  | Deploys all bundle resources in production mode                   |
+
+The deploy job authenticates using a Personal Access Token (PAT).  Configure the following GitHub repository secrets before enabling automated deployments:
+
+| Secret             | Description                                                              |
+|--------------------|--------------------------------------------------------------------------|
+| `DATABRICKS_HOST`  | Workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
+| `DATABRICKS_TOKEN` | Databricks Personal Access Token (PAT)                                   |
+
+See [Automated deployment via GitHub Actions](#automated-deployment-via-github-actions) for step-by-step setup.
 
 ---
 
@@ -308,6 +337,10 @@ dependencies:
 |-------|-------------|
 | [`pytest-coverage`](https://github.com/github/awesome-copilot/blob/main/skills/pytest-coverage/SKILL.md) | Run pytest with coverage, identify uncovered lines, and iteratively improve coverage to 100% |
 | [`pyspark-style-guide`](.github/copilot/skills/pyspark-style-guide/SKILL.md) | Write idiomatic, performant PySpark code following the [Palantir PySpark Style Guide](https://github.com/palantir/pyspark-style-guide) |
+| [`databricks-docs`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-docs) | Query and reason over official Databricks documentation |
+| [`databricks-jobs`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-jobs) | Create, manage, and debug Databricks Jobs |
+| [`databricks-bundles`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-bundles) | Scaffold, validate, and deploy Databricks Asset Bundles |
+| [`databricks-spark-declarative-pipelines`](https://github.com/databricks-solutions/ai-dev-kit/tree/main/databricks-skills/databricks-spark-declarative-pipelines) | Author and manage Lakeflow Declarative Pipelines |
 
 ### Setup
 
@@ -327,10 +360,12 @@ After running `apm install`, your AI coding agent (GitHub Copilot, Claude Code, 
 
 ## Databricks Deployment
 
+The project ships with a `databricks.yml` file that defines all resources as a **Databricks Asset Bundle (DAB)**.  You can deploy using the Databricks CLI from your local machine or via GitHub Actions.
+
 ### Prerequisites
 
 - **Databricks Free Edition** workspace with **Unity Catalog** enabled
-- A catalog, schemas, and volume for storing source data:
+- Create the required catalog, schemas, and volume once (SQL console or notebook):
 
 ```sql
 CREATE CATALOG IF NOT EXISTS test_catalog;
@@ -341,13 +376,165 @@ CREATE SCHEMA IF NOT EXISTS test_catalog.test_silver_schema;
 CREATE SCHEMA IF NOT EXISTS test_catalog.test_gold_schema;
 ```
 
-### Steps
+---
 
-1. **Import** the repository into your Databricks workspace.
+### Install the Databricks CLI
+
+The Databricks CLI (v0.200+) is required to work with Asset Bundles.
+
+**Linux / macOS (recommended)**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+databricks --version   # verify installation
+```
+
+**macOS via Homebrew**
+
+```bash
+brew tap databricks/tap
+brew install databricks
+databricks --version
+```
+
+**Windows (PowerShell)**
+
+```powershell
+winget install Databricks.DatabricksCLI
+# or download the MSI from https://github.com/databricks/cli/releases
+```
+
+For the full installation guide, see the [official docs](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/install).
+
+---
+
+### Authenticate with Databricks Free Edition
+
+The CLI supports several authentication methods.  For the **Databricks Free Edition** the easiest options are:
+
+#### Option A – Interactive OAuth (personal access, recommended for local dev)
+
+```bash
+databricks auth login --host https://<your-workspace-url>.azuredatabricks.net
+# A browser window opens; log in with your Databricks account.
+# Credentials are saved to ~/.databrickscfg under the [DEFAULT] profile.
+```
+
+Verify the connection:
+
+```bash
+databricks current-user me
+```
+
+#### Option B – Personal Access Token (PAT)
+
+1. In the Databricks workspace, go to **Settings → Developer → Access tokens → Generate new token**.
+2. Copy the token and run:
+
+```bash
+databricks configure --host https://<your-workspace-url>.azuredatabricks.net \
+                     --token
+# Paste your PAT when prompted.
+```
+
+#### Option C – Personal Access Token (PAT, for CI/CD)
+
+This is what the GitHub Actions deploy workflow uses.  Set the following environment variables before running CLI commands:
+
+```bash
+export DATABRICKS_HOST=https://<your-workspace-url>.azuredatabricks.net
+export DATABRICKS_TOKEN=<your-personal-access-token>
+```
+
+To generate a Personal Access Token on **Databricks Free Edition**:
+1. In your Databricks workspace, click your username in the top bar and select **Settings**.
+2. Click **Developer → Manage** (next to **Access tokens**).
+3. Click **Generate new token**, enter a comment and lifetime, then click **Generate**.
+4. Copy the token immediately — it is only shown once.
+
+For a full reference, see [Databricks personal access tokens](https://docs.databricks.com/aws/en/dev-tools/auth/pat).
+
+---
+
+### Deploy with Databricks Asset Bundles from a local IDE
+
+The `databricks.yml` at the repository root defines three workflows and two pipelines.
+
+**Bundle resources**
+
+| Resource key | Type | Databricks name | Description |
+|---|---|---|---|
+| `create_fake_data_workflow` | Job | `01.create_fake_data_workflow` | Runs the fake-data generation notebook on serverless compute |
+| `run_simple_lakeflow_pipeline_workflow` | Job | `02.run_simple_lakeflow_pipeline_workflow` | Triggers the simple pipeline |
+| `run_advanced_scd_pipeline_workflow` | Job | `03.run_advanced_scd_pipeline_workflow` | Triggers the advanced + SCD pipeline |
+| `simple_pipeline` | Pipeline | `02.simple_lakeflow_pipeline` | Materialized views from CSV sources |
+| `advanced_scd_pipeline` | Pipeline | `03.advanced_scd_lakeflow_pipeline` | Full medallion + SCD Type 2 pipeline |
+
+**Step-by-step local deployment**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/MikolajSedek/lakeflow_declarative_pipelines_demo.git
+cd lakeflow_declarative_pipelines_demo
+
+# 2. Authenticate (once; see section above)
+databricks auth login --host https://<workspace-url>.azuredatabricks.net
+
+# 3. Validate the bundle (dry-run, no changes deployed)
+databricks bundle validate
+
+# 4. Deploy to the 'dev' target (default)
+databricks bundle deploy
+
+# 5. (Optional) Run a specific workflow or pipeline
+databricks bundle run create_fake_data_workflow
+databricks bundle run simple_pipeline
+databricks bundle run run_simple_lakeflow_pipeline_workflow
+databricks bundle run advanced_scd_pipeline
+databricks bundle run run_advanced_scd_pipeline_workflow
+
+# 6. (Optional) Tear down all deployed resources
+databricks bundle destroy --auto-approve
+```
+
+**Deploy to production**
+
+```bash
+databricks bundle deploy --target prod --auto-approve
+```
+
+---
+
+### Automated deployment via GitHub Actions
+
+`.github/workflows/ci.yml` runs lint and all tests on every push, then automatically deploys the bundle **only after all checks pass**:
+
+- **push to `test`** → deploys to the `dev` target (development mode, resource names are prefixed with `[dev <username>]`)
+- **push to `main`** → deploys to the `prod` target
+
+**Setup**
+
+1. Generate a **Personal Access Token** in your workspace (see [Option C](#option-c--personal-access-token-pat-for-cicd) above).
+2. Add two secrets to your GitHub repository (**Settings → Secrets and variables → Actions → New repository secret**):
+
+| Secret name        | Value                                                                    |
+|--------------------|--------------------------------------------------------------------------|
+| `DATABRICKS_HOST`  | Your workspace URL, e.g. `https://adb-1234567890123456.7.azuredatabricks.net` |
+| `DATABRICKS_TOKEN` | Databricks Personal Access Token (PAT)                                   |
+
+3. Merge a branch into `test` or `main`.  The deploy workflow will run automatically.
+
+---
+
+### Manual notebook-based deployment (no CLI)
+
+If you prefer not to use the CLI:
+
+1. **Import** the repository into your Databricks workspace (Workspace → Git folders → Add Git folder).
 2. **Run `src/python/notebooks/01.create_fake_data.py`** as a notebook to generate CSV source data in the volume.
 3. **Create an ETL Pipeline** (Lakeflow Declarative Pipeline) in the Databricks UI:
    - Set the default catalog to `test_catalog`.
-   - Add `src/python/notebooks/03.advanced_pipeline.py` (or `src/python/notebooks/02.simple_pipeline.py` or `src/python/notebooks/04.scd_genie_code_pipeline.py`) as the pipeline source.
+   - Add `src/python/notebooks/03.advanced_pipeline.py` (or `02.simple_pipeline.py` / `04.scd_genie_code_pipeline.py`) as the pipeline source.
 4. **Start** the pipeline – Databricks handles orchestration, dependency resolution, and incremental processing automatically.
 
 > **Note:** `dp.create_auto_cdc_flow` is a Databricks-only API and is not available in the open-source `pyspark.pipelines` module.
@@ -377,3 +564,8 @@ For full API documentation, see the [Spark Declarative Pipelines Programming Gui
 - [Medallion Architecture Explained](https://pipelinepulse.dev/medallion-architecture-explained/) – Bronze/Silver/Gold pattern guide
 - [CDC with create\_auto\_cdc\_flow](https://docs.databricks.com/aws/en/ldp/cdc) – Change Data Capture API reference
 - [Unity Catalog with Pipelines](https://learn.microsoft.com/en-us/azure/databricks/ldp/unity-catalog) – Governance & permissions
+- [Databricks CLI – Install & overview](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/) – Official CLI documentation
+- [Databricks CLI – Authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/authentication) – All supported auth methods
+- [Databricks Asset Bundles overview](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/bundles/) – DAB reference docs
+- [Bundle deployment modes](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/bundles/deployment-modes) – dev vs prod targets
+- [Pipelines CLI reference](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/reference/pipelines-commands) – `databricks pipelines` commands

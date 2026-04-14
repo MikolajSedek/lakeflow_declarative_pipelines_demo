@@ -1,3 +1,4 @@
+# Databricks notebook source
 """Simple Lakeflow Declarative Pipeline that creates materialized views from CSV sources."""
 
 from pyspark import pipelines as dp

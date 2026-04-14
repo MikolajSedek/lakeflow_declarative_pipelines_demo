@@ -1,4 +1,11 @@
 repos:
+  # ── yamllint: deep structural YAML validation ────────────────────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yml]
+
   # ── general file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -81,4 +88,4 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-        args: [--skip=*.csv,--skip=*.json]
+        args: ["--skip=*.csv", "--skip=*.json"]

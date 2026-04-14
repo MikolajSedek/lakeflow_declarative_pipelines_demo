@@ -1,3 +1,4 @@
+# Databricks notebook source
 """SCD Type 2 Pipeline for tracking product and customer changes in orders.
 
 This pipeline implements Slowly Changing Dimension Type 2 for the fake_orders table,

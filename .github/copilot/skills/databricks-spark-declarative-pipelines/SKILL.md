@@ -72,7 +72,7 @@ databricks pipelines init --output-dir . --config-file init-config.json
 ```
 
 → See [1-project-initialization.md](references/1-project-initialization.md)
-→ 
+→
 
 
 ### Option B: Pipeline within Existing Bundle (edit the bundle)

@@ -21,7 +21,7 @@ resources:
       libraries:
         - glob:
             include: ../src/pipelines/<pipeline_folder>/transformations/**
-      
+
       root_path: ../src/pipelines/<pipeline_folder>
 
       serverless: true

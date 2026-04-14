@@ -98,8 +98,8 @@ def test_create_simple_mv_comment_references_table_name(registry) -> None:
 
 
 def test_create_tables_registers_one_mv_per_table(registry) -> None:
-    """Should register exactly one materialized view for each table in the list."""
-    tables = ["fake_orders", "fake_products", "fake_users"]
+    """Should register exactly one materialized view for each table in the tuple."""
+    tables = ("fake_orders", "fake_products", "fake_users")
     _SIMPLE_PIPELINE.create_tables(tables)
 
     mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
@@ -108,15 +108,15 @@ def test_create_tables_registers_one_mv_per_table(registry) -> None:
 
 def test_create_tables_mv_names_are_unique(registry) -> None:
     """Each registered materialized view should have a unique name."""
-    tables = ["fake_orders", "fake_products", "fake_users"]
+    tables = ("fake_orders", "fake_products", "fake_users")
     _SIMPLE_PIPELINE.create_tables(tables)
 
     names = {o.name for o in registry.outputs}
     assert len(names) == 3
 
 
-def test_create_tables_empty_list_registers_no_outputs(registry) -> None:
-    """Should register no outputs when given an empty table list."""
-    _SIMPLE_PIPELINE.create_tables([])
+def test_create_tables_empty_tuple_registers_no_outputs(registry) -> None:
+    """Should register no outputs when given an empty table tuple."""
+    _SIMPLE_PIPELINE.create_tables(())
 
     assert len(registry.outputs) == 0

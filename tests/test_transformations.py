@@ -3,16 +3,15 @@ Unit tests for pure PySpark transformation functions defined in transformations.
 """
 
 import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.types import TimestampType
-
-from transformations import (
+from modules.transformations import (
     add_load_timestamp,
     anonymize_sensitive_data,
     extract_file_name_from_metadata,
     lower_all_column_names,
     remove_nonsense_columns,
 )
+from pyspark.sql import SparkSession
+from pyspark.sql.types import TimestampType
 
 pytestmark = pytest.mark.spark
 
@@ -177,8 +176,11 @@ def test_anonymize_sensitive_column_is_hashed(sensitive_df, col_name: str) -> No
 @pytest.mark.parametrize(
     ("hash_length", "expected_hex_len"),
     [
-        (256, 64),
-        (512, 128),
+        (0, 64),  # sha2(..., 0) is an alias for SHA-256 in Spark
+        (224, 56),  # 224 bits / 4 = 56 hex chars
+        (256, 64),  # 256 bits / 4 = 64 hex chars
+        (384, 96),  # 384 bits / 4 = 96 hex chars
+        (512, 128),  # 512 bits / 4 = 128 hex chars
     ],
 )
 def test_anonymize_hash_output_length(

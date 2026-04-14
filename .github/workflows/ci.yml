@@ -1,17 +1,13 @@
 name: CI
 
 on:
+  # Run on every push, including branch and tag pushes (includes main/test so the deploy job can trigger)
   push:
-    branches-ignore:
-      - main
-      - test
+  # Run on PRs targeting main/test for required status checks
   pull_request:
     branches:
       - main
       - test
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   lint:
@@ -21,9 +17,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -38,9 +34,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
@@ -59,9 +55,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
@@ -72,3 +68,45 @@ jobs:
 
       - name: Run PySpark tests
         run: pytest tests/ -m spark -v
+
+  # ── Databricks bundle deploy ───────────────────────────────────────────────
+  # Runs ONLY on direct pushes to main (prod) or test (dev).
+  # Guaranteed to execute only after lint, test-pure, and test-spark all pass.
+  deploy:
+    name: Deploy Databricks Asset Bundle
+    needs: [lint, test-pure, test-spark]
+    if: "github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test')"
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-deploy
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Install the Databricks CLI via the official GitHub Action
+      # https://github.com/databricks/setup-cli
+      - uses: databricks/setup-cli@v0.236.0
+
+      # Validate the bundle before deploying (syntax + schema check)
+      - name: Validate bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+      # Deploy to 'prod' on main, 'dev' on test
+      - name: Deploy bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TARGET="prod"
+          else
+            TARGET="dev"
+          fi
+          databricks bundle deploy --target "$TARGET" --auto-approve

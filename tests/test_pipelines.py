@@ -10,6 +10,7 @@ on the *structure* and *registration* side of the pipeline code.
 """
 
 import pytest
+from pyspark.errors.exceptions.base import PySparkRuntimeError
 from pyspark.pipelines import (
     append_flow,
     create_streaming_table,
@@ -284,164 +285,27 @@ def test_output_types_are_distinct(registry) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_materialized_view_outside_context_raises() -> None:
-    """Should raise PySparkRuntimeError when used outside a registration context."""
-    from pyspark.errors.exceptions.base import PySparkRuntimeError
-
-    with pytest.raises(PySparkRuntimeError):
-
-        @materialized_view(name="should_fail")
-        def should_fail():
-            pass
-
-
-def test_table_outside_context_raises() -> None:
-    """Should raise PySparkRuntimeError when table is used without a context."""
-    from pyspark.errors.exceptions.base import PySparkRuntimeError
-
-    with pytest.raises(PySparkRuntimeError):
-
-        @table(name="also_fails")
-        def also_fails():
-            pass
-
-
-def test_create_streaming_table_outside_context_raises() -> None:
-    """Should raise PySparkRuntimeError for create_streaming_table without context."""
-    from pyspark.errors.exceptions.base import PySparkRuntimeError
-
-    with pytest.raises(PySparkRuntimeError):
-        create_streaming_table(name="no_context")
-
-
-# ---------------------------------------------------------------------------
-# Tests: TablePipelineConfig from advanced pipeline
-# ---------------------------------------------------------------------------
-
-
-def test_table_pipeline_config_default_values() -> None:
-    """Should populate all fields with sensible defaults for a given table name."""
-    from pydantic.dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class TablePipelineConfig:
-        table_name: str
-        root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
-        target_catalog: str = "test_catalog"
-        bronze_schema: str = "test_bronze_schema"
-        silver_schema: str = "test_silver_schema"
-        gold_schema: str = "test_gold_schema"
-        prime_key_columns: tuple[str, ...] = ("id",)
-        timestamp_column: str = "timestamp"
-
-    config = TablePipelineConfig(table_name="fake_orders")
-    assert config.table_name == "fake_orders"
-    assert config.target_catalog == "test_catalog"
-    assert config.bronze_schema == "test_bronze_schema"
-    assert config.silver_schema == "test_silver_schema"
-    assert config.gold_schema == "test_gold_schema"
-    assert config.prime_key_columns == ("id",)
-    assert config.timestamp_column == "timestamp"
-
-
-def test_table_pipeline_config_custom_values() -> None:
-    """Should accept and store custom overrides for every field."""
-    from pydantic.dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class TablePipelineConfig:
-        table_name: str
-        root_source_path: str = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
-        target_catalog: str = "test_catalog"
-        bronze_schema: str = "test_bronze_schema"
-        silver_schema: str = "test_silver_schema"
-        gold_schema: str = "test_gold_schema"
-        prime_key_columns: tuple[str, ...] = ("id",)
-        timestamp_column: str = "timestamp"
-
-    config = TablePipelineConfig(
-        table_name="orders",
-        target_catalog="prod_catalog",
-        prime_key_columns=("order_id", "customer_id"),
-        timestamp_column="updated_at",
-    )
-    assert config.table_name == "orders"
-    assert config.target_catalog == "prod_catalog"
-    assert config.prime_key_columns == ("order_id", "customer_id")
-    assert config.timestamp_column == "updated_at"
-
-
-def test_table_pipeline_config_is_frozen() -> None:
-    """Should reject attribute mutation since the dataclass is frozen."""
-    from pydantic.dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class TablePipelineConfig:
-        table_name: str
-        target_catalog: str = "test_catalog"
-
-    config = TablePipelineConfig(table_name="test")
-    with pytest.raises((AttributeError, TypeError)):
-        config.table_name = "other"
-
-
-# ---------------------------------------------------------------------------
-# Tests: Pipeline name generation logic
-# ---------------------------------------------------------------------------
-
-
-def test_bronze_table_name() -> None:
-    """Should generate a fully-qualified bronze table name with '_raw' suffix."""
-    catalog = "test_catalog"
-    schema = "test_bronze_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_bronze_schema.fake_orders_raw"
-    assert f"{catalog}.{schema}.{table_name}_raw" == expected
-
-
-def test_silver_table_name() -> None:
-    """Should generate a fully-qualified silver table name with '_staging' suffix."""
-    catalog = "test_catalog"
-    schema = "test_silver_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_silver_schema.fake_orders_staging"
-    assert f"{catalog}.{schema}.{table_name}_staging" == expected
-
-
-def test_gold_table_name() -> None:
-    """Should generate a fully-qualified gold table name with '_clean' suffix."""
-    catalog = "test_catalog"
-    schema = "test_gold_schema"
-    table_name = "fake_orders"
-    expected = "test_catalog.test_gold_schema.fake_orders_clean"
-    assert f"{catalog}.{schema}.{table_name}_clean" == expected
-
-
-def test_simple_table_name() -> None:
-    """Should generate a fully-qualified simple table name with '_simple_table' suffix."""
-    catalog = "test_catalog"
-    schema = "test_bronze_schema"
-    table_name = "fake_users"
-    expected = "test_catalog.test_bronze_schema.fake_users_simple_table"
-    assert f"{catalog}.{schema}.{table_name}_simple_table" == expected
-
-
-def test_aggregate_gold_table_name() -> None:
-    """Should generate the correct aggregate gold summary table path."""
-    catalog = "test_catalog"
-    schema = "test_gold_schema"
-    agg_name = "summary_statistics_gold"
-    expected = "test_catalog.test_gold_schema.summary_statistics_gold"
-    assert f"{catalog}.{schema}.{agg_name}" == expected
-
-
-def test_gold_table_paths_list() -> None:
-    """Should build a list of gold table paths for all configured tables."""
-    tables = ["fake_orders", "fake_products", "fake_users"]
-    catalog = "test_catalog"
-    schema = "test_gold_schema"
-    postfix = "_clean"
-    paths = [f"{catalog}.{schema}.{t}{postfix}" for t in tables]
-    assert len(paths) == 3
-    assert paths[0] == "test_catalog.test_gold_schema.fake_orders_clean"
-    assert paths[2] == "test_catalog.test_gold_schema.fake_users_clean"
+@pytest.mark.parametrize(
+    ("action", "error_match"),
+    [
+        pytest.param(
+            lambda: materialized_view(name="should_fail")(lambda: None),
+            r"context",
+            id="materialized_view",
+        ),
+        pytest.param(
+            lambda: table(name="also_fails")(lambda: None),
+            r"context",
+            id="table",
+        ),
+        pytest.param(
+            lambda: create_streaming_table(name="no_context"),
+            r"context",
+            id="create_streaming_table",
+        ),
+    ],
+)
+def test_decorator_outside_context_raises(action, error_match: str) -> None:
+    """Should raise PySparkRuntimeError when any pipeline decorator is used without a context."""
+    with pytest.raises(PySparkRuntimeError, match=error_match):
+        action()

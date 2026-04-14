@@ -14,7 +14,7 @@ import pyspark.pipelines as dp_mod
 import pytest
 from pyspark.pipelines.output import MaterializedView, StreamingTable
 
-_PIPELINE_PATH = Path(__file__).parent.parent / "03.advanced_pipeline.py"
+_PIPELINE_PATH = Path(__file__).parent.parent / "src/python/notebooks/03.advanced_pipeline.py"
 
 
 def _load_advanced_pipeline_module():
@@ -166,55 +166,19 @@ def test_create_gold_merged_table_registers_streaming_table(registry, mock_cdc) 
     assert st_outputs[0].name == "test_catalog.test_gold_schema.fake_orders_clean"
 
 
-def test_create_gold_merged_table_calls_cdc_once(registry, mock_cdc) -> None:
-    """Should invoke create_auto_cdc_flow exactly once."""
+def test_create_gold_merged_table_cdc_source_target_keys_sequence(registry, mock_cdc) -> None:
+    """Should pass silver/gold names and default key/sequence columns to create_auto_cdc_flow."""
     _ADVANCED_PIPELINE.create_gold_merged_table(
         silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
         gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
     )
 
     assert mock_cdc.call_count == 1
-
-
-def test_create_gold_merged_table_cdc_source_is_silver(registry, mock_cdc) -> None:
-    """Should pass the silver table as the CDC source."""
-    _ADVANCED_PIPELINE.create_gold_merged_table(
-        silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
-        gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
-    )
-
     assert (
         mock_cdc.call_args.kwargs["source"] == "test_catalog.test_silver_schema.fake_orders_staging"
     )
-
-
-def test_create_gold_merged_table_cdc_target_is_gold(registry, mock_cdc) -> None:
-    """Should pass the gold table name as the CDC target."""
-    _ADVANCED_PIPELINE.create_gold_merged_table(
-        silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
-        gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
-    )
-
     assert mock_cdc.call_args.kwargs["target"] == "test_catalog.test_gold_schema.fake_orders_clean"
-
-
-def test_create_gold_merged_table_cdc_uses_default_key(registry, mock_cdc) -> None:
-    """Should use ('id',) as the default primary key for the CDC flow."""
-    _ADVANCED_PIPELINE.create_gold_merged_table(
-        silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
-        gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
-    )
-
     assert mock_cdc.call_args.kwargs["keys"] == ["id"]
-
-
-def test_create_gold_merged_table_cdc_uses_default_timestamp(registry, mock_cdc) -> None:
-    """Should use 'timestamp' as the default sequence column for the CDC flow."""
-    _ADVANCED_PIPELINE.create_gold_merged_table(
-        silver_table_name="test_catalog.test_silver_schema.fake_orders_staging",
-        gold_table_name="test_catalog.test_gold_schema.fake_orders_clean",
-    )
-
     assert mock_cdc.call_args.kwargs["sequence_by"] == "timestamp"
 
 
@@ -338,3 +302,73 @@ def test_aggregate_gold_tables_mv_has_non_empty_comment(registry) -> None:
     mv = next(o for o in registry.outputs if isinstance(o, MaterializedView))
     assert mv.comment is not None
     assert len(mv.comment) > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: individual gold KPI table functions (parametrized)
+# ---------------------------------------------------------------------------
+
+_GOLD_KPI_CASES = [
+    (
+        "create_gold_revenue_per_product",
+        "test_catalog.test_gold_schema.revenue_per_product_gold",
+    ),
+    (
+        "create_gold_customer_order_summary",
+        "test_catalog.test_gold_schema.customer_order_summary_gold",
+    ),
+    (
+        "create_gold_orders_enriched",
+        "test_catalog.test_gold_schema.orders_enriched_gold",
+    ),
+    (
+        "create_gold_revenue_by_geography",
+        "test_catalog.test_gold_schema.revenue_by_geography_gold",
+    ),
+    (
+        "create_gold_company_sales_performance",
+        "test_catalog.test_gold_schema.company_sales_performance_gold",
+    ),
+    (
+        "create_gold_top_products_by_country",
+        "test_catalog.test_gold_schema.top_products_by_country_gold",
+    ),
+]
+
+
+@pytest.mark.parametrize(("func_name", "expected_mv_name"), _GOLD_KPI_CASES)
+def test_gold_kpi_table_structure(registry, func_name: str, expected_mv_name: str) -> None:
+    """Should register one MV with correct name, comment, and associated flow."""
+    getattr(_ADVANCED_PIPELINE, func_name)()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 1
+    mv = mv_outputs[0]
+    assert mv.name == expected_mv_name
+    assert mv.comment is not None
+    assert len(mv.comment) > 0
+    flows = [f for f in registry.flows if f.target == mv.name]
+    assert len(flows) == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests: create_all_gold_kpi_tables
+# ---------------------------------------------------------------------------
+
+
+def test_create_all_gold_kpi_tables_registers_six_materialized_views(registry) -> None:
+    """Should register exactly six MaterializedView outputs for all KPI tables."""
+    _ADVANCED_PIPELINE.create_all_gold_kpi_tables()
+
+    mv_outputs = [o for o in registry.outputs if isinstance(o, MaterializedView)]
+    assert len(mv_outputs) == 6
+
+
+def test_create_all_gold_kpi_tables_names_are_unique(registry) -> None:
+    """Should register six materialized views with unique fully-qualified names."""
+    _ADVANCED_PIPELINE.create_all_gold_kpi_tables()
+
+    mv_names = {o.name for o in registry.outputs if isinstance(o, MaterializedView)}
+    assert len(mv_names) == 6
+    expected_names = {expected for _, expected in _GOLD_KPI_CASES}
+    assert mv_names == expected_names

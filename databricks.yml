@@ -1,0 +1,82 @@
+# Databricks Asset Bundle configuration
+# https://learn.microsoft.com/en-us/azure/databricks/dev-tools/bundles/
+#
+# Deploy:  databricks bundle deploy
+# Run:     databricks bundle run <resource-name>
+
+bundle:
+  name: lakeflow-declarative-pipelines-demo
+
+# ── Deployment targets ───────────────────────────────────────────────────────
+targets:
+  dev:
+    mode: development
+    default: true
+
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+# ── Resources ────────────────────────────────────────────────────────────────
+resources:
+
+  # ── Workflows (Databricks Jobs) ──────────────────────────────────────────
+  jobs:
+
+    # 01 – Generate fake CSV data and write to Unity Catalog Volume
+    create_fake_data_workflow:
+      name: "01.create_fake_data_workflow"
+      tasks:
+        - task_key: create_fake_data
+          # Relative path from bundle root; DAB resolves to the deployed workspace path
+          # No cluster configuration → uses serverless compute
+          notebook_task:
+            notebook_path: ./src/python/notebooks/01.create_fake_data.py
+
+    # 02 – Run the simple Lakeflow Declarative Pipeline
+    run_simple_lakeflow_pipeline_workflow:
+      name: "02.run_simple_lakeflow_pipeline_workflow"
+      tasks:
+        - task_key: run_pipeline
+          # Pipeline tasks run on serverless compute automatically
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.simple_pipeline.id}
+
+    # 03 – Run the advanced + SCD pipeline
+    run_advanced_scd_pipeline_workflow:
+      name: "03.run_advanced_scd_pipeline_workflow"
+      tasks:
+        - task_key: run_advanced_pipeline
+          # Pipeline tasks run on serverless compute automatically
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.advanced_scd_pipeline.id}
+
+  # ── Lakeflow Declarative Pipelines ───────────────────────────────────────
+  pipelines:
+
+    # 02 – Simple pipeline: materialized views from CSV sources
+    simple_pipeline:
+      name: "02.simple_lakeflow_pipeline"
+      serverless: true
+      catalog: test_catalog
+      # 'schema' is the current field ('target' is deprecated)
+      schema: test_bronze_schema
+      channel: current
+      libraries:
+        - notebook:
+            path: src/python/notebooks/02.simple_pipeline.py
+
+    # 03+04 – Advanced medallion pipeline (Bronze→Silver→Gold) + SCD Type 2
+    advanced_scd_pipeline:
+      name: "03.advanced_scd_lakeflow_pipeline"
+      serverless: true
+      catalog: test_catalog
+      # 'schema' is the current field ('target' is deprecated)
+      schema: test_bronze_schema
+      channel: current
+      libraries:
+        - notebook:
+            path: src/python/notebooks/03.advanced_pipeline.py
+        - notebook:
+            path: src/python/notebooks/04.scd_genie_code_pipeline.py

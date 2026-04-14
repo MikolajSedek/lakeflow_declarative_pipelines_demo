@@ -1,5 +1,6 @@
 # Databricks notebook source
 """Databricks notebook that generates fake data and writes it to Volumes."""
+
 # MAGIC %pip install mimesis==19.1.0 pendulum==3.2.0 loguru==0.7.3
 # MAGIC
 
@@ -9,15 +10,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from loguru import logger
 from mimesis.enums import Locale
-from pyspark.sql import DataFrame
+from modules.data_generation import FrameConfig, generate_list_of_rows
+from modules.ddl_helpers import build_setup_ddl_statements
+from pyspark.sql import DataFrame, SparkSession
 
-from data_generation import FrameConfig, generate_list_of_rows
+CATALOG = "test_catalog"
+SCHEMA = "test_schema"
+VOLUME = "test_volume"
+BRONZE_SCHEMA = "test_bronze_schema"
+SILVER_SCHEMA = "test_silver_schema"
+GOLD_SCHEMA = "test_gold_schema"
 
-NUM_USERS = 2000
-NUM_PRODUCTS = 1500
-NUM_ORDERS = 3000
+NUM_USERS = 20000
+NUM_PRODUCTS = 15000
+NUM_ORDERS = 30000
 LOCALE = Locale.EN
-WRITE_PATH = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
+WRITE_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/fake_source/"
 
 
 # Users Data
@@ -46,13 +54,41 @@ def generate_products_data(num_products: int = NUM_PRODUCTS, locale: Locale = LO
 
 
 # Orders Data
-def generate_orders_data(num_orders: int = NUM_ORDERS, locale: Locale = LOCALE) -> DataFrame:
+def generate_orders_data(
+    num_orders: int = NUM_ORDERS,
+    locale: Locale = LOCALE,
+    num_users: int = NUM_USERS,
+    num_products: int = NUM_PRODUCTS,
+) -> DataFrame:
     """
-    Generates fake orders data.
+    Generates fake orders data with valid foreign keys to users and products.
     """
-    orders_rows = generate_list_of_rows("orders", num_orders, locale)
+    orders_rows = generate_list_of_rows(
+        "orders",
+        num_orders,
+        locale,
+        num_users=num_users,
+        num_products=num_products,
+    )
     orders_df = spark.createDataFrame(orders_rows)
     return orders_df
+
+
+def run_setup_ddl(
+    spark: SparkSession,
+    catalog: str = CATALOG,
+    schema: str = SCHEMA,
+    volume: str = VOLUME,
+    extra_schemas: tuple[str, ...] = (BRONZE_SCHEMA, SILVER_SCHEMA, GOLD_SCHEMA),
+) -> None:
+    """Execute catalog/schema/volume provisioning DDL against *spark*.
+
+    Side-effect function — kept at the outermost layer of the call stack so that
+    the builder logic (``build_setup_ddl_statements``) remains pure and testable.
+    """
+    for statement in build_setup_ddl_statements(catalog, schema, volume, extra_schemas):
+        logger.info("Executing DDL: {}", statement)
+        spark.sql(statement)
 
 
 def write_frame_config_to_path(root_path: str, config: FrameConfig) -> None:
@@ -89,18 +125,7 @@ def write_all_configs_parallel(
 
 # COMMAND ----------
 
-# MAGIC %md DDL STATEMENTS
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- create catalog, schemas and volume
-# MAGIC CREATE CATALOG IF NOT EXISTS test_catalog;
-# MAGIC CREATE SCHEMA IF NOT EXISTS test_catalog.test_schema;
-# MAGIC CREATE VOLUME IF NOT EXISTS test_catalog.test_schema.test_volume;
-# MAGIC CREATE SCHEMA IF NOT EXISTS test_catalog.test_bronze_schema;
-# MAGIC CREATE SCHEMA IF NOT EXISTS test_catalog.test_silver_schema;
-# MAGIC CREATE SCHEMA IF NOT EXISTS test_catalog.test_gold_schema;
+# MAGIC %md DDL STATEMENTS — provisioned via run_setup_ddl() below
 
 # COMMAND ----------
 
@@ -109,6 +134,7 @@ def write_all_configs_parallel(
 # COMMAND ----------
 
 if __name__ == "__main__":
+    run_setup_ddl(spark)
     fake_configs = [
         FrameConfig("fake_users", generate_users_frame()),
         FrameConfig("fake_products", generate_products_data()),

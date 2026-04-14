@@ -15,12 +15,14 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit>=1.9.0",
+    "black>=24.0.0",
     "codespell>=2.4.0",
     "interrogate>=1.7.0",
     "mypy>=1.10.0",
     "pre-commit>=4.0.0",
     "pydocstyle>=6.3.0",
     "pytest>=9.0.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.4.0",
 ]
 
@@ -29,9 +31,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["src/python/notebooks"]
 markers = [
     "spark: tests that require a live SparkSession (deselect with '-m not spark')",
 ]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 100
@@ -61,18 +68,20 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Databricks notebooks: spark/dp are injected globals, not importable locally
-"01.create_fake_data.py" = ["F821"]
-"02.simple_pipeline.py" = ["F821"]
-"03.advanced_pipeline.py" = ["F821"]
+"src/python/notebooks/01.create_fake_data.py" = ["F821"]
+"src/python/notebooks/02.simple_pipeline.py" = ["F821"]
+"src/python/notebooks/03.advanced_pipeline.py" = ["F821"]
+# Skill example notebook: spark/display are Databricks injected globals; print is intentional display output
+".github/copilot/skills/databricks-spark-declarative-pipelines/scripts/exploration_notebook.py" = ["F821", "T201"]
 
 [tool.mypy]
 python_version = "3.10"
 ignore_missing_imports = true
 # Databricks notebooks reference spark/dp globals that don't exist locally
 exclude = [
-    "01\\.create_fake_data\\.py",
-    "02\\.simple_pipeline\\.py",
-    "03\\.advanced_pipeline\\.py",
+    "src/python/notebooks/01\\.create_fake_data\\.py",
+    "src/python/notebooks/02\\.simple_pipeline\\.py",
+    "src/python/notebooks/03\\.advanced_pipeline\\.py",
 ]
 
 [tool.bandit]
@@ -87,6 +96,7 @@ convention = "google"
 add-ignore = ["D100", "D104", "D212"]
 # Only check production modules; notebooks reference Databricks globals
 match = "(transformations|data_generation)\\.py"
+match-dir = "modules"
 
 [tool.interrogate]
 ignore-init-method = true

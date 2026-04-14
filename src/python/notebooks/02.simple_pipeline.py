@@ -1,3 +1,4 @@
+# Databricks notebook source
 """Simple Lakeflow Declarative Pipeline that creates materialized views from CSV sources."""
 
 from pyspark import pipelines as dp
@@ -8,7 +9,7 @@ SOURCE_PATH_ROOT = "/Volumes/test_catalog/test_schema/test_volume/fake_source/"
 TARGET_CATALOG = "test_catalog"
 TARGET_SCHEMA = "test_bronze_schema"
 
-TABLES_LIST = ["fake_orders", "fake_products", "fake_users"]
+TABLES_LIST: tuple[str, ...] = ("fake_orders", "fake_products", "fake_users")
 
 
 def create_simple_materialized_view(
@@ -36,7 +37,7 @@ def create_simple_materialized_view(
         return source_frame
 
 
-def create_tables(tables_list: list[str]) -> None:
+def create_tables(tables_list: tuple[str, ...]) -> None:
     """
     Create multiple materialized view tables.
     """

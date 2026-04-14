@@ -14,9 +14,8 @@ targets:
     default: true
 
   prod:
-    mode: production
-    workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    mode: development # NOTE: it's currently switched to development for demo purposes; change to production for production deployments and set up appropriate run_as user for your environment
+
 
 # ── Resources ────────────────────────────────────────────────────────────────
 resources:

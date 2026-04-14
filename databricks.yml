@@ -7,26 +7,6 @@
 bundle:
   name: lakeflow-declarative-pipelines-demo
 
-variables:
-  catalog:
-    description: Unity Catalog catalog name
-    default: test_catalog
-  schema:
-    description: Default schema for source data
-    default: test_schema
-  volume:
-    description: Volume name for CSV source files
-    default: test_volume
-  bronze_schema:
-    description: Bronze layer schema
-    default: test_bronze_schema
-  silver_schema:
-    description: Silver layer schema
-    default: test_silver_schema
-  gold_schema:
-    description: Gold layer schema
-    default: test_gold_schema
-
 # ── Deployment targets ───────────────────────────────────────────────────────
 targets:
   dev:
@@ -77,9 +57,9 @@ resources:
     simple_pipeline:
       name: "02.simple_lakeflow_pipeline"
       serverless: true
-      catalog: ${var.catalog}
+      catalog: test_catalog
       # 'schema' is the current field ('target' is deprecated)
-      schema: ${var.bronze_schema}
+      schema: test_bronze_schema
       channel: current
       libraries:
         - notebook:
@@ -89,9 +69,9 @@ resources:
     advanced_scd_pipeline:
       name: "03.advanced_scd_lakeflow_pipeline"
       serverless: true
-      catalog: ${var.catalog}
+      catalog: test_catalog
       # 'schema' is the current field ('target' is deprecated)
-      schema: ${var.bronze_schema}
+      schema: test_bronze_schema
       channel: current
       libraries:
         - notebook:

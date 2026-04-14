@@ -100,8 +100,7 @@ The project follows the **Medallion Architecture** pattern widely used in Databr
 ├── apm.yml                     # Agent Package Manager skill declarations
 ├── .pre-commit-config.yaml     # Pre-commit hook definitions
 └── .github/workflows/
-    ├── ci.yml                  # GitHub Actions CI – lint + unit tests on feature branches / PRs
-    └── deploy.yml              # GitHub Actions CD – bundle deploy on push to main / test
+    └── ci.yml                  # GitHub Actions CI/CD – lint + unit tests on feature branches / PRs; deploy job handles bundle deployment on push to main / test
 ```
 
 ---
@@ -497,16 +496,6 @@ databricks bundle run run_advanced_scd_pipeline_workflow
 
 # 6. (Optional) Tear down all deployed resources
 databricks bundle destroy --auto-approve
-```
-
-**Override variables at deploy time**
-
-You can override any variable defined in `databricks.yml`:
-
-```bash
-databricks bundle deploy \
-  --var="catalog=my_catalog" \
-  --var="bronze_schema=my_bronze"
 ```
 
 **Deploy to production**

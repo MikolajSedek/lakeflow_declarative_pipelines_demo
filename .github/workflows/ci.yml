@@ -89,7 +89,7 @@ jobs:
 
       # Install the Databricks CLI via the official GitHub Action
       # https://github.com/databricks/setup-cli
-      - uses: databricks/setup-cli@main
+      - uses: databricks/setup-cli@v0.236.0
 
       # Validate the bundle before deploying (syntax + schema check)
       - name: Validate bundle

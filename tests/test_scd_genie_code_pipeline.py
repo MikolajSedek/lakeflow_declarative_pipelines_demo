@@ -57,7 +57,7 @@ def mock_cdc():
         ("TARGET_TABLE_NAME", "fake_orders_scd2"),
         ("KEY_COLUMN", "id"),
         ("SEQUENCE_COLUMN", "timestamp"),
-        ("HISTORY_TRACKED_COLUMNS", ["productid", "userid"]),
+        ("HISTORY_TRACKED_COLUMNS", ("productid", "userid")),
     ],
 )
 def test_pipeline_constant(attr: str, expected: object) -> None:

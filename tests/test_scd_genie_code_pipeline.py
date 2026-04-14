@@ -48,39 +48,21 @@ def mock_cdc():
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_source_table() -> None:
-    """Should reference the silver-layer staging table as the CDC source."""
-    assert _PIPELINE.SOURCE_TABLE == "test_catalog.test_silver_schema.fake_orders_staging"
-
-
-def test_pipeline_target_catalog() -> None:
-    """Should use test_catalog as the target catalog."""
-    assert _PIPELINE.TARGET_CATALOG == "test_catalog"
-
-
-def test_pipeline_gold_schema() -> None:
-    """Should use the gold schema for the output table."""
-    assert _PIPELINE.GOLD_SCHEMA == "test_gold_schema"
-
-
-def test_pipeline_target_table_name() -> None:
-    """Should name the target table fake_orders_scd2."""
-    assert _PIPELINE.TARGET_TABLE_NAME == "fake_orders_scd2"
-
-
-def test_pipeline_key_column() -> None:
-    """Should use 'id' as the primary key column."""
-    assert _PIPELINE.KEY_COLUMN == "id"
-
-
-def test_pipeline_sequence_column() -> None:
-    """Should use 'timestamp' as the sequencing column for CDC ordering."""
-    assert _PIPELINE.SEQUENCE_COLUMN == "timestamp"
-
-
-def test_pipeline_history_tracked_columns() -> None:
-    """Should track history for both 'productid' and 'userid' columns."""
-    assert _PIPELINE.HISTORY_TRACKED_COLUMNS == ["productid", "userid"]
+@pytest.mark.parametrize(
+    ("attr", "expected"),
+    [
+        ("SOURCE_TABLE", "test_catalog.test_silver_schema.fake_orders_staging"),
+        ("TARGET_CATALOG", "test_catalog"),
+        ("GOLD_SCHEMA", "test_gold_schema"),
+        ("TARGET_TABLE_NAME", "fake_orders_scd2"),
+        ("KEY_COLUMN", "id"),
+        ("SEQUENCE_COLUMN", "timestamp"),
+        ("HISTORY_TRACKED_COLUMNS", ["productid", "userid"]),
+    ],
+)
+def test_pipeline_constant(attr: str, expected: object) -> None:
+    """Should expose each module-level constant with the expected value."""
+    assert getattr(_PIPELINE, attr) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -89,27 +71,10 @@ def test_pipeline_history_tracked_columns() -> None:
 
 
 def test_target_table_full_name() -> None:
-    """Should produce a three-part catalog.schema.table name."""
+    """Should assemble a valid three-part catalog.schema.table name from the module constants."""
     expected = "test_catalog.test_gold_schema.fake_orders_scd2"
     actual = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
     assert actual == expected
-
-
-def test_target_table_name_has_three_parts() -> None:
-    """Should contain exactly three dot-separated segments."""
-    full_name = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
-    assert len(full_name.split(".")) == 3
-
-
-def test_source_table_references_silver_schema() -> None:
-    """Should read from silver_schema, not bronze or gold."""
-    assert "silver_schema" in _PIPELINE.SOURCE_TABLE
-
-
-def test_target_references_gold_schema() -> None:
-    """Should write to gold_schema."""
-    full_name = f"{_PIPELINE.TARGET_CATALOG}.{_PIPELINE.GOLD_SCHEMA}.{_PIPELINE.TARGET_TABLE_NAME}"
-    assert "gold_schema" in full_name
 
 
 # ---------------------------------------------------------------------------
@@ -168,52 +133,20 @@ def test_cdc_flow_is_called_once(registry, mock_cdc) -> None:
     assert mock_cdc.call_count == 1
 
 
-def test_cdc_flow_target_matches_streaming_table(registry, mock_cdc) -> None:
-    """Should pass the same fully-qualified name as both the table and CDC target."""
+@pytest.mark.parametrize(
+    ("kwarg", "expected"),
+    [
+        ("target", "test_catalog.test_gold_schema.fake_orders_scd2"),
+        ("source", "test_catalog.test_silver_schema.fake_orders_staging"),
+        ("keys", ["id"]),
+        ("sequence_by", "timestamp"),
+        ("stored_as_scd_type", 2),
+        ("track_history_column_list", ["productid", "userid"]),
+        ("ignore_null_updates", True),
+    ],
+)
+def test_cdc_flow_kwarg(registry, mock_cdc, kwarg: str, expected: object) -> None:
+    """Should forward each expected keyword argument to create_auto_cdc_flow."""
     _PIPELINE.create_orders_scd2_table()
 
-    assert mock_cdc.call_args.kwargs["target"] == "test_catalog.test_gold_schema.fake_orders_scd2"
-
-
-def test_cdc_flow_source_is_staging_table(registry, mock_cdc) -> None:
-    """Should read from the silver staging table."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert (
-        mock_cdc.call_args.kwargs["source"] == "test_catalog.test_silver_schema.fake_orders_staging"
-    )
-
-
-def test_cdc_flow_keys_contain_id(registry, mock_cdc) -> None:
-    """Should use 'id' as the CDC primary key."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert mock_cdc.call_args.kwargs["keys"] == ["id"]
-
-
-def test_cdc_flow_sequence_by_is_timestamp(registry, mock_cdc) -> None:
-    """Should sequence CDC events by the 'timestamp' column."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert mock_cdc.call_args.kwargs["sequence_by"] == "timestamp"
-
-
-def test_cdc_flow_stored_as_scd_type_2(registry, mock_cdc) -> None:
-    """Should store as SCD Type 2 to preserve full product change history."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert mock_cdc.call_args.kwargs["stored_as_scd_type"] == 2
-
-
-def test_cdc_flow_tracks_productid_history(registry, mock_cdc) -> None:
-    """Should track history for 'productid' and 'userid' columns."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert mock_cdc.call_args.kwargs["track_history_column_list"] == ["productid", "userid"]
-
-
-def test_cdc_flow_ignores_null_updates(registry, mock_cdc) -> None:
-    """Should set ignore_null_updates=True to avoid overwriting existing data with nulls."""
-    _PIPELINE.create_orders_scd2_table()
-
-    assert mock_cdc.call_args.kwargs["ignore_null_updates"] is True
+    assert mock_cdc.call_args.kwargs[kwarg] == expected

@@ -94,7 +94,9 @@ def three_configs(users_df, products_df, orders_df) -> list[_FrameConfig]:
 # ---------------------------------------------------------------------------
 
 
-def test_parallel_write_creates_output_directories(tmp_root: Path, three_configs) -> None:
+def test_parallel_write_creates_output_directories(
+    tmp_root: Path, three_configs: list[_FrameConfig]
+) -> None:
     """Should create one output directory per FrameConfig."""
     _write_all_configs_parallel(str(tmp_root), three_configs)
     for cfg in three_configs:
@@ -102,7 +104,7 @@ def test_parallel_write_creates_output_directories(tmp_root: Path, three_configs
 
 
 def test_parallel_write_row_counts_match(
-    spark: SparkSession, tmp_root: Path, three_configs
+    spark: SparkSession, tmp_root: Path, three_configs: list[_FrameConfig]
 ) -> None:
     """Should write the correct number of rows for each DataFrame."""
     _write_all_configs_parallel(str(tmp_root), three_configs)
@@ -113,7 +115,7 @@ def test_parallel_write_row_counts_match(
 
 
 def test_parallel_write_column_names_preserved(
-    spark: SparkSession, tmp_root: Path, three_configs
+    spark: SparkSession, tmp_root: Path, three_configs: list[_FrameConfig]
 ) -> None:
     """Should preserve column names through the write-read round trip."""
     _write_all_configs_parallel(str(tmp_root), three_configs)
@@ -127,7 +129,7 @@ def test_parallel_write_column_names_preserved(
 
 
 def test_parallel_write_data_values_correct(
-    spark: SparkSession, tmp_root: Path, three_configs
+    spark: SparkSession, tmp_root: Path, three_configs: list[_FrameConfig]
 ) -> None:
     """Should preserve actual data values through the round trip."""
     _write_all_configs_parallel(str(tmp_root), three_configs)
@@ -157,7 +159,9 @@ def test_parallel_write_single_config(spark: SparkSession, tmp_root: Path, users
     assert spark.read.csv(str(tmp_root / "only_users"), header=True).count() == 10
 
 
-def test_parallel_write_max_workers_one(spark: SparkSession, tmp_root: Path, three_configs) -> None:
+def test_parallel_write_max_workers_one(
+    spark: SparkSession, tmp_root: Path, three_configs: list[_FrameConfig]
+) -> None:
     """Should still work correctly with max_workers=1 (sequential fallback)."""
     _write_all_configs_parallel(str(tmp_root), three_configs, max_workers=1)
 
@@ -167,7 +171,7 @@ def test_parallel_write_max_workers_one(spark: SparkSession, tmp_root: Path, thr
 
 
 def test_parallel_write_max_workers_exceeds_configs(
-    spark: SparkSession, tmp_root: Path, three_configs
+    spark: SparkSession, tmp_root: Path, three_configs: list[_FrameConfig]
 ) -> None:
     """Should work when max_workers exceeds the number of configs."""
     _write_all_configs_parallel(str(tmp_root), three_configs, max_workers=10)
@@ -205,7 +209,9 @@ def test_parallel_write_propagates_first_exception_among_mixed(
 # ---------------------------------------------------------------------------
 
 
-def test_parallel_write_submits_all_futures(tmp_root: Path, three_configs) -> None:
+def test_parallel_write_submits_all_futures(
+    tmp_root: Path, three_configs: list[_FrameConfig]
+) -> None:
     """Should submit one future per config to the thread pool."""
     submitted_names: list[str] = []
     original_submit = ThreadPoolExecutor.submit
@@ -221,7 +227,9 @@ def test_parallel_write_submits_all_futures(tmp_root: Path, three_configs) -> No
     assert sorted(submitted_names) == ["orders", "products", "users"]
 
 
-def test_parallel_write_all_configs_complete(tmp_root: Path, three_configs) -> None:
+def test_parallel_write_all_configs_complete(
+    tmp_root: Path, three_configs: list[_FrameConfig]
+) -> None:
     """Should call future.result() for every submitted config (no silent drops)."""
     completed_names: list[str] = []
 

@@ -87,12 +87,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install the Databricks CLI (latest release)
-      # https://learn.microsoft.com/en-us/azure/databricks/dev-tools/cli/install
-      - name: Install Databricks CLI
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh \
-            | sudo sh
+      # Install the Databricks CLI via the official GitHub Action
+      # https://github.com/databricks/setup-cli
+      - uses: databricks/setup-cli@main
 
       # Validate the bundle before deploying (syntax + schema check)
       - name: Validate bundle
